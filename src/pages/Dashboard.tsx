@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Bot, BookOpen, Zap, Target, Gift } from "lucide-react";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { AdaptiveTimeline } from "@/components/modules/AdaptiveTimeline";
 
 const quickActions = [
   { icon: Bot, label: "AI Buddy", gradient: "primary", path: "/chat" },
@@ -46,7 +47,7 @@ export default function Dashboard() {
               <p className="text-white/80 text-xs">Complete</p>
             </div>
           </div>
-          
+
           {/* Progress Bar */}
           <div className="bg-white/20 rounded-full h-2 overflow-hidden">
             <motion.div
@@ -57,7 +58,7 @@ export default function Dashboard() {
             />
           </div>
         </div>
-        
+
         {/* Decorative Elements */}
         <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
       </motion.div>
@@ -101,6 +102,11 @@ export default function Dashboard() {
             </motion.a>
           ))}
         </div>
+      </div>
+
+      {/* Adaptive Timeline */}
+      <div className="mb-8">
+        <AdaptiveTimeline />
       </div>
 
       {/* Recent Modules */}

@@ -1,134 +1,106 @@
-import { motion } from "framer-motion";
-import { Lock, Play } from "lucide-react";
+import { useEffect, useState } from "react";
+import { moduleService } from "@/services/moduleService";
+import { ModuleWithProgress } from "@/types/module";
+import { ModuleCard } from "@/components/modules/ModuleCard";
+import AiModuleSuggestions from "@/components/modules/AiModuleSuggestions";
+import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/layout/BottomNav";
-import { GradientButton } from "@/components/ui/gradient-button";
-
-const modules = [
-  {
-    id: 1,
-    title: "Python Fundamentals",
-    description: "Master the basics of Python programming",
-    progress: 75,
-    locked: false,
-    credits: 0,
-    icon: "🐍",
-  },
-  {
-    id: 2,
-    title: "AI & Machine Learning",
-    description: "Introduction to artificial intelligence",
-    progress: 45,
-    locked: false,
-    credits: 0,
-    icon: "🤖",
-  },
-  {
-    id: 3,
-    title: "Web Design Mastery",
-    description: "Create beautiful, responsive websites",
-    progress: 30,
-    locked: false,
-    credits: 0,
-    icon: "🎨",
-  },
-  {
-    id: 4,
-    title: "Data Science Pro",
-    description: "Advanced data analysis techniques",
-    progress: 0,
-    locked: true,
-    credits: 25,
-    icon: "📊",
-  },
-  {
-    id: 5,
-    title: "Blockchain Basics",
-    description: "Understanding decentralized technology",
-    progress: 0,
-    locked: true,
-    credits: 30,
-    icon: "⛓️",
-  },
-];
 
 export default function Modules() {
+  const [modules, setModules] = useState<ModuleWithProgress[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [unlockingId, setUnlockingId] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const fetchModules = async () => {
+    try {
+      const data = await moduleService.getModules();
+      setModules(data);
+    } catch (error) {
+      console.error("Error fetching modules:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load modules. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchModules();
+  }, []);
+
+  const handleUnlock = async (moduleId: string, cost: number) => {
+    setUnlockingId(moduleId);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to unlock modules.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await moduleService.unlockModule(moduleId, user.id, cost);
+
+      toast({
+        title: "Success!",
+        description: "Module unlocked successfully.",
+      });
+
+      // Refresh modules to update state
+      await fetchModules();
+    } catch (error: any) {
+      console.error("Error unlocking module:", error);
+      toast({
+        title: "Unlock Failed",
+        description: error.message || "Could not unlock module. Check your credits.",
+        variant: "destructive",
+      });
+    } finally {
+      setUnlockingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen pb-20 px-4 pt-8">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <h1 className="text-2xl font-bold mb-2">Learning Modules</h1>
-        <p className="text-muted-foreground">Unlock your potential, one module at a time</p>
-      </motion.div>
+    <div className="container mx-auto py-8 px-4">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Learning Modules</h1>
+        <p className="text-muted-foreground">Unlock modules to advance your AI skills.</p>
+      </div>
 
-      <div className="space-y-4">
-        {modules.map((module, index) => (
-          <motion.div
+      <AiModuleSuggestions onModuleCreated={fetchModules} />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {modules.map((module) => (
+          <ModuleCard
             key={module.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className={`bg-surface/50 backdrop-blur-lg border border-border rounded-3xl p-5 ${
-              module.locked ? "opacity-60" : ""
-            }`}
-          >
-            <div className="flex gap-4">
-              {/* Icon */}
-              <div
-                className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0 ${
-                  module.locked ? "bg-muted" : "bg-gradient-primary"
-                }`}
-              >
-                {module.locked ? <Lock className="w-6 h-6 text-foreground" /> : module.icon}
-              </div>
-
-              {/* Content */}
-              <div className="flex-1">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-semibold text-lg">{module.title}</h3>
-                    <p className="text-sm text-muted-foreground">{module.description}</p>
-                  </div>
-                  {module.locked && (
-                    <div className="bg-accent/20 text-accent-foreground px-3 py-1 rounded-full text-xs font-semibold">
-                      {module.credits} credits
-                    </div>
-                  )}
-                </div>
-
-                {/* Progress or Unlock Button */}
-                {!module.locked ? (
-                  <>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs text-muted-foreground">Progress</span>
-                      <span className="text-xs font-semibold">{module.progress}%</span>
-                    </div>
-                    <div className="bg-muted rounded-full h-1.5 overflow-hidden mb-3">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${module.progress}%` }}
-                        transition={{ delay: 0.5 + index * 0.1, duration: 0.8 }}
-                        className="bg-gradient-primary h-full rounded-full"
-                      />
-                    </div>
-                    <GradientButton variant="primary" className="w-full h-10">
-                      <Play className="w-4 h-4 mr-2" />
-                      Continue Learning
-                    </GradientButton>
-                  </>
-                ) : (
-                  <GradientButton variant="accent" className="w-full h-10 mt-2">
-                    <Lock className="w-4 h-4 mr-2" />
-                    Unlock Module
-                  </GradientButton>
-                )}
-              </div>
-            </div>
-          </motion.div>
+            module={module}
+            onUnlock={handleUnlock}
+            isUnlocking={unlockingId === module.id}
+          />
         ))}
       </div>
+
+      {modules.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No modules available yet.</p>
+        </div>
+      )}
 
       <BottomNav />
     </div>

@@ -55,6 +55,7 @@ export default function Profile() {
     { icon: Wallet, label: "Credit Wallet", value: `${wallet?.credits || 0} credits`, path: "/wallet" },
     { icon: Award, label: "Certificates", value: `${certificates?.length || 0} earned`, path: "/certificates" },
     { icon: Gift, label: "Refer & Earn", value: "Share code", path: "/referral" },
+    { icon: User, label: "AI Persona", value: "Customize", path: "/profile/ai-persona" },
     { icon: Settings, label: "Settings", value: "", path: "/settings" },
   ];
 
