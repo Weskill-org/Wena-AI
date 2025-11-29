@@ -1,10 +1,11 @@
-import { Home, BookOpen, Wallet, User } from "lucide-react";
+import { Home, BookOpen, Wallet, User, Bot } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { motion } from "framer-motion";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: BookOpen, label: "Learn", path: "/modules" },
+  { icon: Bot, label: "Ai Buddy", path: "/chat" },
   { icon: Wallet, label: "Wallet", path: "/wallet" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
