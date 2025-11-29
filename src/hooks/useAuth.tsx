@@ -44,11 +44,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      })
+      .catch((error) => {
+        console.error('Error getting session:', error);
+        setSession(null);
+        setUser(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
