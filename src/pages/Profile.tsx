@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { User, Wallet, Award, Settings, LogOut, Gift, ChevronRight } from "lucide-react";
+import { User, Wallet, Award, Settings, LogOut, Gift, ChevronRight, Edit } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,11 +71,17 @@ export default function Profile() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <div className="bg-gradient-primary rounded-3xl p-6 glow-primary">
+        <div className="bg-gradient-primary rounded-3xl p-6 glow-primary relative">
+          <button
+            onClick={() => navigate('/profile/edit')}
+            className="absolute top-4 right-4 w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm hover:bg-white/30 flex items-center justify-center transition-smooth"
+          >
+            <Edit className="w-5 h-5 text-white" />
+          </button>
           <div className="flex items-center gap-4">
             <motion.div
               whileHover={{ scale: 1.05 }}
-              className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-4xl"
+              className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-4xl overflow-hidden"
             >
               {profile?.avatar_url ? (
                 <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
