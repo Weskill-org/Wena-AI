@@ -32,7 +32,7 @@ export class GeminiLiveClient {
     constructor(options: LiveClientOptions) {
         this.options = options;
         this.genAI = new GoogleGenerativeAI(options.apiKey);
-        this.model = this.genAI.getGenerativeModel({ model: "gemini-pro" });
+        this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     }
 
     async connect() {
