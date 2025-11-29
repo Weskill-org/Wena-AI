@@ -2,15 +2,43 @@ import { motion } from "framer-motion";
 import { Coins, Gift, TrendingUp, ChevronRight } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { GradientButton } from "@/components/ui/gradient-button";
-
-const transactions = [
-  { id: 1, type: "earned", amount: 50, label: "Module Completed", date: "Today" },
-  { id: 2, type: "spent", amount: -25, label: "Unlocked Module", date: "Yesterday" },
-  { id: 3, type: "earned", amount: 30, label: "Referral Bonus", date: "2 days ago" },
-  { id: 4, type: "earned", amount: 20, label: "Daily Challenge", date: "3 days ago" },
-];
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 
 export default function Wallet() {
+  const { user } = useAuth();
+
+  const { data: wallet } = useQuery({
+    queryKey: ['wallet', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: transactions } = useQuery({
+    queryKey: ['transactions', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   return (
     <div className="min-h-screen pb-20 px-4 pt-8">
       {/* Balance Card */}
@@ -22,7 +50,7 @@ export default function Wallet() {
         <div className="flex justify-between items-start mb-4">
           <div>
             <p className="text-white/80 text-sm mb-1">Total Balance</p>
-            <h1 className="text-5xl font-bold text-white">250</h1>
+            <h1 className="text-5xl font-bold text-white">{wallet?.credits || 0}</h1>
             <p className="text-white/80 text-sm mt-1">Credits</p>
           </div>
           <motion.div
@@ -69,38 +97,46 @@ export default function Wallet() {
       {/* Transaction History */}
       <div>
         <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
-        <div className="space-y-3">
-          {transactions.map((tx, index) => (
-            <motion.div
-              key={tx.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 + index * 0.1 }}
-              className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-4 flex justify-between items-center"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  tx.type === "earned" ? "bg-accent/20" : "bg-destructive/20"
+        {!transactions || transactions.length === 0 ? (
+          <div className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-8 text-center">
+            <p className="text-muted-foreground">No transactions yet</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {transactions.map((tx, index) => (
+              <motion.div
+                key={tx.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 + index * 0.1 }}
+                className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-4 flex justify-between items-center"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    tx.type === "earned" ? "bg-accent/20" : "bg-destructive/20"
+                  }`}>
+                    {tx.type === "earned" ? (
+                      <TrendingUp className={`w-5 h-5 text-accent`} />
+                    ) : (
+                      <Coins className={`w-5 h-5 text-destructive`} />
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-semibold">{tx.label}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(tx.created_at), { addSuffix: true })}
+                    </div>
+                  </div>
+                </div>
+                <div className={`text-lg font-bold ${
+                  tx.type === "earned" ? "text-accent" : "text-destructive"
                 }`}>
-                  {tx.type === "earned" ? (
-                    <TrendingUp className={`w-5 h-5 text-accent`} />
-                  ) : (
-                    <Coins className={`w-5 h-5 text-destructive`} />
-                  )}
+                  {tx.amount > 0 ? "+" : ""}{tx.amount}
                 </div>
-                <div>
-                  <div className="font-semibold">{tx.label}</div>
-                  <div className="text-xs text-muted-foreground">{tx.date}</div>
-                </div>
-              </div>
-              <div className={`text-lg font-bold ${
-                tx.type === "earned" ? "text-accent" : "text-destructive"
-              }`}>
-                {tx.amount > 0 ? "+" : ""}{tx.amount}
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
       <BottomNav />

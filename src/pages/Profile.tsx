@@ -1,15 +1,68 @@
 import { motion } from "framer-motion";
 import { User, Wallet, Award, Settings, LogOut, Gift, ChevronRight } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
-
-const menuItems = [
-  { icon: Wallet, label: "Credit Wallet", value: "250 credits", path: "/wallet" },
-  { icon: Award, label: "Certificates", value: "3 earned", path: "/certificates" },
-  { icon: Gift, label: "Refer & Earn", value: "Share code", path: "/referral" },
-  { icon: Settings, label: "Settings", value: "", path: "/settings" },
-];
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: wallet } = useQuery({
+    queryKey: ['wallet', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('credits')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: certificates } = useQuery({
+    queryKey: ['certificates', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('certificates')
+        .select('id')
+        .eq('user_id', user?.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const menuItems = [
+    { icon: Wallet, label: "Credit Wallet", value: `${wallet?.credits || 0} credits`, path: "/wallet" },
+    { icon: Award, label: "Certificates", value: `${certificates?.length || 0} earned`, path: "/certificates" },
+    { icon: Gift, label: "Refer & Earn", value: "Share code", path: "/referral" },
+    { icon: Settings, label: "Settings", value: "", path: "/settings" },
+  ];
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen pb-20 px-4 pt-8">
       {/* Profile Header */}
@@ -24,11 +77,15 @@ export default function Profile() {
               whileHover={{ scale: 1.05 }}
               className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-4xl"
             >
-              👤
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
+              ) : (
+                "👤"
+              )}
             </motion.div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Alex Johnson</h1>
-              <p className="text-white/80">alex.j@email.com</p>
+              <h1 className="text-2xl font-bold text-white">{profile?.full_name || "Loading..."}</h1>
+              <p className="text-white/80">{user?.email}</p>
               <div className="flex gap-2 mt-2">
                 <span className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs text-white font-medium">
                   Level 12
@@ -98,6 +155,7 @@ export default function Profile() {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.7 }}
         whileTap={{ scale: 0.95 }}
+        onClick={handleLogout}
         className="w-full bg-destructive/10 text-destructive rounded-2xl p-4 flex items-center justify-center gap-2 font-semibold transition-smooth hover:bg-destructive/20"
       >
         <LogOut className="w-5 h-5" />
