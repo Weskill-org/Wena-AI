@@ -1,17 +1,15 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 
-// Add this to handle the missing types without a separate file if I want to be quick, 
-// but since I created the d.ts file, I should just ensure it's picked up. 
-// However, to be safe and immediate:
-declare global {
-    interface Window {
-        SpeechRecognition: any;
-        webkitSpeechRecognition: any;
-    }
-}
+// Audio Context Global References to prevent garbage collection issues
+let inputAudioContext: AudioContext | null = null;
+let outputAudioContext: AudioContext | null = null;
+let mediaStream: MediaStream | null = null;
+let scriptProcessor: ScriptProcessorNode | null = null;
+let inputSource: MediaStreamAudioSourceNode | null = null;
+let nextStartTime = 0;
+const sources = new Set<AudioBufferSourceNode>();
 
-
-interface LiveClientOptions {
+export interface LiveClientOptions {
     apiKey: string;
     systemInstruction?: string;
     onConnect?: () => void;
@@ -20,159 +18,207 @@ interface LiveClientOptions {
     onError?: (error: any) => void;
 }
 
-export class GeminiLiveClient {
-    private genAI: GoogleGenerativeAI;
-    private options: LiveClientOptions;
-    private recognition: any = null;
-    private synthesis: SpeechSynthesis = window.speechSynthesis;
-    private isConnected: boolean = false;
-    private model: any;
-    private chat: any;
+// Utility to encode audio data for Gemini
+function encode(bytes: Uint8Array) {
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
 
-    constructor(options: LiveClientOptions) {
-        this.options = options;
-        this.genAI = new GoogleGenerativeAI(options.apiKey);
-        this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Utility to decode audio data from Gemini
+function decode(base64: string) {
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+}
+
+function createBlob(data: Float32Array) {
+    const l = data.length;
+    const int16 = new Int16Array(l);
+    for (let i = 0; i < l; i++) {
+        int16[i] = data[i] * 32768;
+    }
+    return {
+        data: encode(new Uint8Array(int16.buffer)),
+        mimeType: 'audio/pcm;rate=16000',
+    };
+}
+
+async function decodeAudioData(
+    data: Uint8Array,
+    ctx: AudioContext,
+    sampleRate: number,
+    numChannels: number,
+): Promise<AudioBuffer> {
+    const dataInt16 = new Int16Array(data.buffer);
+    const frameCount = dataInt16.length / numChannels;
+    const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+    for (let channel = 0; channel < numChannels; channel++) {
+        const channelData = buffer.getChannelData(channel);
+        for (let i = 0; i < frameCount; i++) {
+            channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+        }
+    }
+    return buffer;
+}
+
+export class GeminiLiveClient {
+    private ai: GoogleGenAI;
+    private sessionPromise: Promise<any> | null = null;
+    private config: LiveClientOptions;
+    private active: boolean = false;
+
+    constructor(config: LiveClientOptions) {
+        this.config = config;
+        this.ai = new GoogleGenAI({ apiKey: config.apiKey });
     }
 
     async connect() {
+        if (this.active) return;
+
         try {
-            this.isConnected = true;
-            this.chat = this.model.startChat({
-                history: [
-                    {
-                        role: "user",
-                        parts: [{ text: this.options.systemInstruction || "You are a helpful assistant." }],
+            // Initialize Audio Contexts
+            inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+            outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+
+            const outputNode = outputAudioContext.createGain();
+            outputNode.connect(outputAudioContext.destination);
+
+            // Get Microphone Access
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            // Start Gemini Session
+            this.sessionPromise = this.ai.live.connect({
+                model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+                callbacks: {
+                    onopen: () => {
+                        console.log('Gemini Live Session Opened');
+                        this.active = true;
+                        this.config.onConnect?.();
+
+                        // Setup Input Stream
+                        if (inputAudioContext && mediaStream) {
+                            inputSource = inputAudioContext.createMediaStreamSource(mediaStream);
+                            // Using ScriptProcessor as per guidelines example
+                            scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
+
+                            scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
+                                if (!this.active) return;
+
+                                const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+
+                                // Simple volume calculation for UI
+                                let sum = 0;
+                                for (let i = 0; i < inputData.length; i++) sum += inputData[i] * inputData[i];
+                                const rms = Math.sqrt(sum / inputData.length);
+                                this.config.onVolumeChange?.(rms);
+
+                                const pcmBlob = createBlob(inputData);
+
+                                this.sessionPromise?.then((session) => {
+                                    session.sendRealtimeInput({ media: pcmBlob });
+                                });
+                            };
+
+                            inputSource.connect(scriptProcessor);
+                            scriptProcessor.connect(inputAudioContext.destination);
+                        }
                     },
-                    {
-                        role: "model",
-                        parts: [{ text: "Understood. I am ready to help." }],
+                    onmessage: async (message: LiveServerMessage) => {
+                        if (!outputAudioContext) return;
+
+                        // Handle Audio Output
+                        const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+                        if (base64Audio) {
+                            nextStartTime = Math.max(nextStartTime, outputAudioContext.currentTime);
+
+                            const audioBuffer = await decodeAudioData(
+                                decode(base64Audio),
+                                outputAudioContext,
+                                24000,
+                                1
+                            );
+
+                            const source = outputAudioContext.createBufferSource();
+                            source.buffer = audioBuffer;
+                            source.connect(outputNode);
+                            source.addEventListener('ended', () => {
+                                sources.delete(source);
+                            });
+
+                            source.start(nextStartTime);
+                            nextStartTime = nextStartTime + audioBuffer.duration;
+                            sources.add(source);
+
+                            // Mock volume for model talking
+                            this.config.onVolumeChange?.(0.5);
+                        }
+
+                        // Handle Interruption
+                        if (message.serverContent?.interrupted) {
+                            for (const source of sources) {
+                                source.stop();
+                                sources.delete(source);
+                            }
+                            nextStartTime = 0;
+                        }
                     },
-                ],
+                    onclose: () => {
+                        console.log('Gemini Live Session Closed');
+                        this.disconnect();
+                    },
+                    onerror: (e) => {
+                        console.error('Gemini Live Session Error', e);
+                        this.config.onError?.(e);
+                        this.disconnect();
+                    }
+                },
+                config: {
+                    responseModalities: [Modality.AUDIO],
+                    speechConfig: {
+                        voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
+                    },
+                    systemInstruction: this.config.systemInstruction || "You are a helpful, encouraging, and knowledgeable AI student companion. Keep your responses concise and conversational.",
+                }
             });
 
-            this.setupSpeechRecognition();
-            this.options.onConnect?.();
         } catch (error) {
-            this.options.onError?.(error);
+            console.error("Failed to connect to Live API", error);
+            this.config.onError?.(error);
+            this.disconnect();
         }
     }
 
     disconnect() {
-        this.isConnected = false;
-        if (this.recognition) {
-            this.recognition.stop();
-        }
-        this.synthesis.cancel();
-        this.options.onDisconnect?.();
-    }
+        this.active = false;
 
-    private setupSpeechRecognition() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            this.options.onError?.("Speech recognition not supported in this browser.");
-            return;
+        // Stop Microphone
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+            mediaStream = null;
         }
 
-        this.recognition = new SpeechRecognition();
-        this.recognition.continuous = true; // Keep listening
-        this.recognition.interimResults = false;
-        this.recognition.lang = "en-US";
+        // Disconnect Input Nodes
+        if (inputSource) inputSource.disconnect();
+        if (scriptProcessor) scriptProcessor.disconnect();
+        if (inputAudioContext) inputAudioContext.close();
 
-        this.recognition.onstart = () => {
-            console.log("Speech recognition started");
-        };
+        // Stop Output
+        sources.forEach(source => source.stop());
+        sources.clear();
+        if (outputAudioContext) outputAudioContext.close();
 
-        this.recognition.onresult = async (event: any) => {
-            if (!this.isConnected) return;
+        this.config.onDisconnect?.();
 
-            const lastResultIndex = event.results.length - 1;
-            const transcript = event.results[lastResultIndex][0].transcript;
-
-            if (event.results[lastResultIndex].isFinal) {
-                console.log("User said:", transcript);
-                // Simulate volume change for visual feedback
-                this.simulateVolume();
-                await this.processUserInput(transcript);
-            }
-        };
-
-        this.recognition.onerror = (event: any) => {
-            console.error("Speech recognition error", event.error);
-            if (event.error === 'not-allowed') {
-                this.options.onError?.("Microphone access denied.");
-                this.disconnect();
-            }
-        };
-
-        this.recognition.onend = () => {
-            // Restart if still connected (continuous listening workaround)
-            if (this.isConnected) {
-                try {
-                    this.recognition?.start();
-                } catch (e) {
-                    // Ignore if already started
-                }
-            }
-        };
-
-        this.recognition.start();
-    }
-
-    private async processUserInput(text: string) {
-        try {
-            const result = await this.chat.sendMessage(text);
-            const response = await result.response;
-            const responseText = response.text();
-            console.log("Gemini said:", responseText);
-            this.speak(responseText);
-        } catch (error) {
-            console.error("Error getting response from Gemini:", error);
-            this.speak("I'm sorry, I'm having trouble connecting right now.");
-        }
-    }
-
-    private speak(text: string) {
-        if (!this.isConnected) return;
-
-        // Stop listening while speaking to avoid hearing itself (optional, but good for simple setups)
-        // this.recognition?.stop(); 
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.onstart = () => {
-            // Simulate speaking volume
-            this.simulateSpeakingVolume();
-        };
-        utterance.onend = () => {
-            // Resume listening if we stopped it
-            // if (this.isConnected) this.recognition?.start();
-            this.options.onVolumeChange?.(0);
-        };
-        this.synthesis.speak(utterance);
-    }
-
-    private simulateVolume() {
-        // Quick blip for user input
-        let vol = 0;
-        const interval = setInterval(() => {
-            vol = Math.random();
-            this.options.onVolumeChange?.(vol);
-            if (!this.isConnected) clearInterval(interval);
-        }, 100);
-        setTimeout(() => {
-            clearInterval(interval);
-            this.options.onVolumeChange?.(0);
-        }, 1000);
-    }
-
-    private simulateSpeakingVolume() {
-        const interval = setInterval(() => {
-            if (this.synthesis.speaking && this.isConnected) {
-                this.options.onVolumeChange?.(Math.random() * 0.8 + 0.2);
-            } else {
-                clearInterval(interval);
-                this.options.onVolumeChange?.(0);
-            }
-        }, 100);
+        // Note: session.close() is not available on the Promise, 
+        // relying on garbage collection and connection drop
     }
 }

@@ -10,7 +10,7 @@ const genAI = new GoogleGenerativeAI(API_KEY || "");
 
 export const sendMessageToGemini = async (message: string) => {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-native-audio-preview-09-2025" });
     const result = await model.generateContent(message);
     const response = await result.response;
     return response.text();
