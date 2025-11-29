@@ -1,136 +1,418 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { Input } from "@/components/ui/input";
-import { Bot } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Bot, Mail, Lock, User, Phone, Calendar, Sparkles } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Login() {
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const { signUp, signIn, signInWithMagicLink, user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  
+  // Sign Up form
+  const [signUpData, setSignUpData] = useState({
+    fullName: "",
+    email: "",
+    phoneNumber: "",
+    dateOfBirth: "",
+    password: "",
+    confirmPassword: "",
+  });
 
-  const handleSendOTP = () => {
-    if (phone.length >= 10) {
-      setStep("otp");
+  // Sign In form
+  const [signInData, setSignInData] = useState({
+    email: "",
+    password: "",
+  });
+
+  // Magic Link form
+  const [magicLinkEmail, setMagicLinkEmail] = useState("");
+
+  // Redirect if already logged in
+  if (user) {
+    window.location.href = "/";
+    return null;
+  }
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (signUpData.password !== signUpData.confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "Please make sure your passwords match.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    if (!signUpData.fullName || !signUpData.email || !signUpData.phoneNumber || !signUpData.dateOfBirth || !signUpData.password) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await signUp(signUpData.email, signUpData.password, {
+      full_name: signUpData.fullName,
+      phone_number: signUpData.phoneNumber,
+      date_of_birth: signUpData.dateOfBirth,
+    });
+
+    if (error) {
+      toast({
+        title: "Sign up failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+    setLoading(false);
   };
 
-  const handleVerifyOTP = () => {
-    if (otp.length === 6) {
-      window.location.href = "/";
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!signInData.email || !signInData.password) {
+      toast({
+        title: "Missing information",
+        description: "Please enter your email and password.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    setLoading(true);
+    const { error } = await signIn(signInData.email, signInData.password);
+
+    if (error) {
+      toast({
+        title: "Sign in failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+    setLoading(false);
+  };
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!magicLinkEmail) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await signInWithMagicLink(magicLinkEmail);
+
+    if (error) {
+      toast({
+        title: "Failed to send magic link",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Animated Background Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10 animate-pulse-glow" />
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10" />
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iaHNsKDI4MCwgMTAwJSwgNzAlKSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDUiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-40" />
       
+      {/* Floating Elements */}
+      <motion.div
+        className="absolute top-20 left-10 w-20 h-20 rounded-full bg-primary/20 blur-xl"
+        animate={{ y: [0, -20, 0], x: [0, 10, 0] }}
+        transition={{ duration: 4, repeat: Infinity }}
+      />
+      <motion.div
+        className="absolute bottom-20 right-10 w-32 h-32 rounded-full bg-secondary/20 blur-xl"
+        animate={{ y: [0, 20, 0], x: [0, -10, 0] }}
+        transition={{ duration: 5, repeat: Infinity }}
+      />
+
       {/* Content */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative z-10 w-full max-w-md space-y-8"
+        transition={{ duration: 0.6 }}
+        className="relative z-10 w-full max-w-lg"
       >
-        {/* Logo */}
+        {/* Logo & Header */}
         <motion.div
-          className="flex flex-col items-center gap-4"
-          initial={{ scale: 0.8 }}
+          className="flex flex-col items-center gap-4 mb-8"
+          initial={{ scale: 0.9 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.2, type: "spring" }}
         >
           <motion.div
-            animate={{ rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+            animate={{ 
+              rotate: [0, 5, -5, 0],
+              scale: [1, 1.05, 1]
+            }}
+            transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
             className="w-20 h-20 rounded-3xl bg-gradient-primary flex items-center justify-center glow-primary"
           >
             <Bot className="w-10 h-10 text-white" />
           </motion.div>
           <div className="text-center">
-            <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <motion.h1 
+              className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent flex items-center gap-2 justify-center"
+              animate={{ opacity: [1, 0.8, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
               WeSkill AI
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Your AI buddy for personalized learning
+              <Sparkles className="w-6 h-6 text-primary animate-pulse" />
+            </motion.h1>
+            <p className="text-muted-foreground mt-2 text-lg">
+              Your AI buddy for personalized learning ✨
             </p>
           </div>
         </motion.div>
 
-        {/* Login Form */}
+        {/* Auth Forms */}
         <motion.div
-          className="bg-surface/50 backdrop-blur-lg rounded-3xl p-8 border border-border space-y-6"
+          className="bg-surface/50 backdrop-blur-lg rounded-3xl p-8 border border-border/50 shadow-2xl"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.4 }}
         >
-          {step === "phone" ? (
-            <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Phone Number
-                </label>
-                <div className="flex gap-2">
-                  <div className="bg-input rounded-xl px-4 py-3 text-foreground font-medium flex items-center border border-border">
-                    +1
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50">
+              <TabsTrigger value="signin" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-white">
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger value="signup" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-white">
+                Sign Up
+              </TabsTrigger>
+              <TabsTrigger value="magic" className="data-[state=active]:bg-gradient-secondary data-[state=active]:text-white">
+                Magic Link
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Sign In Tab */}
+            <TabsContent value="signin">
+              <AnimatePresence mode="wait">
+                <motion.form
+                  key="signin"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  onSubmit={handleSignIn}
+                  className="space-y-4"
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email" className="text-foreground flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      Email
+                    </Label>
+                    <Input
+                      id="signin-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={signInData.email}
+                      onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                      className="bg-input border-border rounded-xl h-12"
+                    />
                   </div>
-                  <Input
-                    type="tel"
-                    placeholder="Enter your phone number"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="flex-1 bg-input border-border rounded-xl h-12 text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-              </div>
-              <GradientButton
-                variant="primary"
-                glow
-                onClick={handleSendOTP}
-                disabled={phone.length < 10}
-                className="w-full"
-              >
-                Send OTP
-              </GradientButton>
-            </>
-          ) : (
-            <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Enter OTP
-                </label>
-                <Input
-                  type="text"
-                  placeholder="6-digit code"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.slice(0, 6))}
-                  maxLength={6}
-                  className="bg-input border-border rounded-xl h-12 text-center text-2xl tracking-widest text-foreground"
-                />
-              </div>
-              <GradientButton
-                variant="secondary"
-                glow
-                onClick={handleVerifyOTP}
-                disabled={otp.length !== 6}
-                className="w-full"
-              >
-                Verify & Continue
-              </GradientButton>
-              <button
-                onClick={() => setStep("phone")}
-                className="text-sm text-muted-foreground hover:text-foreground transition-smooth w-full"
-              >
-                Change phone number
-              </button>
-            </>
-          )}
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password" className="text-foreground flex items-center gap-2">
+                      <Lock className="w-4 h-4" />
+                      Password
+                    </Label>
+                    <Input
+                      id="signin-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={signInData.password}
+                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                      className="bg-input border-border rounded-xl h-12"
+                    />
+                  </div>
+                  <GradientButton
+                    variant="primary"
+                    glow
+                    type="submit"
+                    disabled={loading}
+                    className="w-full mt-6"
+                  >
+                    {loading ? "Signing in..." : "Sign In 🚀"}
+                  </GradientButton>
+                </motion.form>
+              </AnimatePresence>
+            </TabsContent>
+
+            {/* Sign Up Tab */}
+            <TabsContent value="signup">
+              <AnimatePresence mode="wait">
+                <motion.form
+                  key="signup"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  onSubmit={handleSignUp}
+                  className="space-y-4"
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name" className="text-foreground flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      Full Name
+                    </Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="John Doe"
+                      value={signUpData.fullName}
+                      onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
+                      className="bg-input border-border rounded-xl h-12"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email" className="text-foreground flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      Email
+                    </Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={signUpData.email}
+                      onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                      className="bg-input border-border rounded-xl h-12"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-phone" className="text-foreground flex items-center gap-2">
+                      <Phone className="w-4 h-4" />
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="signup-phone"
+                      type="tel"
+                      placeholder="+1 234 567 8900"
+                      value={signUpData.phoneNumber}
+                      onChange={(e) => setSignUpData({ ...signUpData, phoneNumber: e.target.value })}
+                      className="bg-input border-border rounded-xl h-12"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-dob" className="text-foreground flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Date of Birth
+                    </Label>
+                    <Input
+                      id="signup-dob"
+                      type="date"
+                      value={signUpData.dateOfBirth}
+                      onChange={(e) => setSignUpData({ ...signUpData, dateOfBirth: e.target.value })}
+                      className="bg-input border-border rounded-xl h-12"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password" className="text-foreground flex items-center gap-2">
+                      <Lock className="w-4 h-4" />
+                      Password
+                    </Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={signUpData.password}
+                      onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                      className="bg-input border-border rounded-xl h-12"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirm" className="text-foreground flex items-center gap-2">
+                      <Lock className="w-4 h-4" />
+                      Confirm Password
+                    </Label>
+                    <Input
+                      id="signup-confirm"
+                      type="password"
+                      placeholder="••••••••"
+                      value={signUpData.confirmPassword}
+                      onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
+                      className="bg-input border-border rounded-xl h-12"
+                    />
+                  </div>
+                  <GradientButton
+                    variant="primary"
+                    glow
+                    type="submit"
+                    disabled={loading}
+                    className="w-full mt-6"
+                  >
+                    {loading ? "Creating account..." : "Create Account 🎉"}
+                  </GradientButton>
+                </motion.form>
+              </AnimatePresence>
+            </TabsContent>
+
+            {/* Magic Link Tab */}
+            <TabsContent value="magic">
+              <AnimatePresence mode="wait">
+                <motion.form
+                  key="magic"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  onSubmit={handleMagicLink}
+                  className="space-y-4"
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="magic-email" className="text-foreground flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      Email Address
+                    </Label>
+                    <Input
+                      id="magic-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={magicLinkEmail}
+                      onChange={(e) => setMagicLinkEmail(e.target.value)}
+                      className="bg-input border-border rounded-xl h-12"
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    We'll send you a magic link to sign in without a password! ✨
+                  </p>
+                  <GradientButton
+                    variant="secondary"
+                    glow
+                    type="submit"
+                    disabled={loading}
+                    className="w-full mt-6"
+                  >
+                    {loading ? "Sending magic link..." : "Send Magic Link ✨"}
+                  </GradientButton>
+                </motion.form>
+              </AnimatePresence>
+            </TabsContent>
+          </Tabs>
         </motion.div>
 
-        {/* Additional Info */}
-        <p className="text-center text-xs text-muted-foreground">
-          By continuing, you agree to our Terms of Service and Privacy Policy
-        </p>
+        {/* Footer */}
+        <motion.p 
+          className="text-center text-xs text-muted-foreground mt-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+        >
+          By continuing, you agree to our Terms of Service and Privacy Policy 🔒
+        </motion.p>
       </motion.div>
     </div>
   );
