@@ -3,16 +3,22 @@ import { ModuleWithProgress } from "@/types/module";
 
 export const moduleService = {
     async getModules(): Promise<ModuleWithProgress[]> {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) return [];
+
         const { data: modules, error: modulesError } = await supabase
             .from("modules" as any)
             .select("*")
+            .eq("user_id", user.id)
             .order("order_index", { ascending: true });
 
         if (modulesError) throw modulesError;
 
         const { data: progress, error: progressError } = await supabase
             .from("user_module_progress" as any)
-            .select("*");
+            .select("*")
+            .eq("user_id", user.id);
 
         if (progressError) throw progressError;
 
@@ -200,10 +206,15 @@ export const moduleService = {
     },
 
     async createModuleWithCurriculum(moduleData: any, curriculumData: any) {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) throw new Error("User not authenticated");
+
         // 1. Create Module
         const { data: module, error: moduleError } = await supabase
             .from("modules" as any)
             .insert({
+                user_id: user.id,
                 title: moduleData.title,
                 description: moduleData.description,
                 credit_cost: moduleData.credit_cost,

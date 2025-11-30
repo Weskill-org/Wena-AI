@@ -9,27 +9,44 @@ if (!API_KEY) {
 const genAI = new GoogleGenerativeAI(API_KEY || "");
 
 export const geminiLessonService = {
-  async generateLessonContent(topic: string, moduleContext: string, chapterContext: string) {
+  async generateLessonContent(topic: string, moduleContext: string, chapterContext: string, personalizationContext?: string) {
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
       const prompt = `
         You are an expert AI tutor. Create a comprehensive lesson on the topic: "${topic}".
         Context: This lesson is part of the module "${moduleContext}" and chapter "${chapterContext}".
+        ${personalizationContext ? `User Personalization Context: ${personalizationContext}` : ""}
         
-        Please provide the content in valid Markdown format with the following structure:
-        1. **Introduction**: Brief overview of the concept.
-        2. **Key Concepts**: Detailed explanation with bullet points.
-        3. **Code Examples**: Provide clear code snippets (if applicable to the topic) with explanations.
-        4. **Real-world Application**: How this is used in practice.
-        5. **Summary**: A quick wrap-up.
+        Return the response as a JSON object with the following structure:
+        {
+          "text_content": "The main lesson content in Markdown format. Include Introduction, Key Concepts, Code Examples (if applicable), Real-world Application, and Summary.",
+          "voice_script": "A conversational script for an AI tutor to explain the key points to the student. Keep it engaging and under 2 minutes when read aloud.",
+          "image_prompts": [
+            "A detailed description of an image that would illustrate the key concept.",
+            "Another image description if needed."
+          ],
+          "quiz": [
+            {
+              "question": "A multiple choice or true/false question about the lesson.",
+              "options": ["Option A", "Option B", "Option C", "Option D"],
+              "correct_answer": "Option A"
+            },
+             {
+              "question": "Another question.",
+              "options": ["True", "False"],
+              "correct_answer": "True"
+            }
+          ]
+        }
         
-        Keep the tone encouraging and easy to understand for a beginner to intermediate learner.
+        Do not include markdown formatting like \`\`\`json. Just return the raw JSON string.
       `;
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      return response.text();
+      const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(text);
     } catch (error) {
       console.error("Error generating lesson content:", error);
       throw new Error("Failed to generate lesson content. Please try again.");

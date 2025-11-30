@@ -4,10 +4,12 @@ import { moduleService } from "@/services/moduleService";
 import { geminiLessonService } from "@/services/geminiLessonService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, ArrowLeft, CheckCircle, RefreshCw } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle, RefreshCw, Volume2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
+import LessonQuiz from "@/components/modules/LessonQuiz";
+import VoiceMode from "@/components/ui/VoiceMode";
 
 export default function LessonView() {
     const { moduleId, lessonId } = useParams<{ moduleId: string; lessonId: string }>();
@@ -17,6 +19,7 @@ export default function LessonView() {
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [completing, setCompleting] = useState(false);
+    const [showQuiz, setShowQuiz] = useState(false);
 
     useEffect(() => {
         if (!lessonId) return;
@@ -24,7 +27,21 @@ export default function LessonView() {
         const fetchLesson = async () => {
             try {
                 const data = await moduleService.getLesson(lessonId);
-                setLesson(data);
+
+                // Parse content if it's a string (legacy) or use as object
+                let parsedContent = data.content;
+                if (typeof data.content === 'string' && data.content.startsWith('{')) {
+                    try {
+                        parsedContent = JSON.parse(data.content);
+                    } catch (e) {
+                        // If parse fails, treat as markdown string (legacy)
+                        parsedContent = { text_content: data.content };
+                    }
+                } else if (typeof data.content === 'string') {
+                    parsedContent = { text_content: data.content };
+                }
+
+                setLesson({ ...data, content: parsedContent });
 
                 // If content is empty, generate it
                 if (!data.content) {
@@ -48,20 +65,23 @@ export default function LessonView() {
     const generateContent = async (lessonData: any) => {
         setGenerating(true);
         try {
+            // Retrieve personalization context if available
+            const personalizationContext = sessionStorage.getItem(`curriculum_context_${moduleId}`);
+
             const content = await geminiLessonService.generateLessonContent(
                 lessonData.title,
                 lessonData.chapter.module.title,
-                lessonData.chapter.title
+                lessonData.chapter.title,
+                personalizationContext || undefined
             );
 
             // Update local state
             setLesson((prev: any) => ({ ...prev, content }));
 
-            // Save to DB (optional, but good for caching)
-            // For now we just display it, but in a real app we'd save it to the 'lessons' table
+            // Save to DB (stringify JSON for storage)
             await supabase
                 .from("lessons" as any)
-                .update({ content })
+                .update({ content: JSON.stringify(content) })
                 .eq("id", lessonData.id);
 
         } catch (error) {
@@ -121,6 +141,9 @@ export default function LessonView() {
         );
     }
 
+    const { content } = lesson;
+    const isStructured = content && typeof content === 'object' && content.text_content;
+
     return (
         <div className="container mx-auto py-8 px-4 max-w-4xl pb-24">
             <Button variant="ghost" className="mb-6" onClick={() => navigate(`/modules/${moduleId}`)}>
@@ -136,6 +159,11 @@ export default function LessonView() {
                 </div>
             </div>
 
+            {/* Voice Mode Integration (Placeholder for now, can be expanded) */}
+            {/* <div className="mb-8 h-64 rounded-xl overflow-hidden">
+                 <VoiceMode onDeductCredit={() => {}} hasCredits={true} />
+            </div> */}
+
             <Card className="mb-8">
                 <CardContent className="pt-6">
                     {generating ? (
@@ -144,32 +172,78 @@ export default function LessonView() {
                             <p className="text-muted-foreground">AI Buddy is writing your lesson...</p>
                         </div>
                     ) : (
-                        <div className="prose prose-slate dark:prose-invert max-w-none">
-                            <ReactMarkdown>{lesson.content || "No content available."}</ReactMarkdown>
+                        <div className="space-y-6">
+                            {/* Image Placeholders */}
+                            {isStructured && content.image_prompts && content.image_prompts.length > 0 && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                    {content.image_prompts.map((prompt: string, i: number) => (
+                                        <div key={i} className="bg-muted rounded-lg p-4 flex flex-col items-center justify-center text-center h-48 border-2 border-dashed">
+                                            <span className="text-xs text-muted-foreground uppercase tracking-widest mb-2">AI Image Concept</span>
+                                            <p className="text-sm italic">"{prompt}"</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="prose prose-slate dark:prose-invert max-w-none">
+                                <ReactMarkdown>
+                                    {isStructured ? content.text_content : (typeof content === 'string' ? content : "No content available.")}
+                                </ReactMarkdown>
+                            </div>
+
+                            {/* Voice Script Section */}
+                            {isStructured && content.voice_script && (
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 mt-6">
+                                    <h4 className="flex items-center text-blue-700 dark:text-blue-300 font-semibold mb-2">
+                                        <Volume2 className="w-4 h-4 mr-2" /> AI Tutor Script
+                                    </h4>
+                                    <p className="text-sm text-blue-800 dark:text-blue-200 italic">
+                                        "{content.voice_script}"
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>
             </Card>
 
-            <div className="flex justify-between items-center">
+            {/* Quiz Section */}
+            {isStructured && content.quiz && content.quiz.length > 0 && (
+                <div className="mb-8">
+                    {!showQuiz && !lesson.progress?.completed ? (
+                        <Button className="w-full" size="lg" onClick={() => setShowQuiz(true)}>
+                            Start Lesson Quiz
+                        </Button>
+                    ) : (
+                        <LessonQuiz
+                            quiz={content.quiz}
+                            onComplete={handleComplete}
+                        />
+                    )}
+                </div>
+            )}
+
+            <div className="flex justify-between items-center mt-8">
                 <Button variant="outline" onClick={() => generateContent(lesson)} disabled={generating}>
                     <RefreshCw className="w-4 h-4 mr-2" /> Regenerate Content
                 </Button>
 
-                <Button
-                    size="lg"
-                    onClick={handleComplete}
-                    disabled={completing || lesson.progress?.completed}
-                    className={lesson.progress?.completed ? "bg-green-600 hover:bg-green-700" : ""}
-                >
-                    {lesson.progress?.completed ? (
-                        <>
-                            <CheckCircle className="w-5 h-5 mr-2" /> Completed
-                        </>
-                    ) : (
-                        "Mark as Complete"
-                    )}
-                </Button>
+                {!isStructured && (
+                    <Button
+                        size="lg"
+                        onClick={handleComplete}
+                        disabled={completing || lesson.progress?.completed}
+                        className={lesson.progress?.completed ? "bg-green-600 hover:bg-green-700" : ""}
+                    >
+                        {lesson.progress?.completed ? (
+                            <>
+                                <CheckCircle className="w-5 h-5 mr-2" /> Completed
+                            </>
+                        ) : (
+                            "Mark as Complete"
+                        )}
+                    </Button>
+                )}
             </div>
         </div>
     );

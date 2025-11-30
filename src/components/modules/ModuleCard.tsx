@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Lock, Unlock, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 
 interface ModuleCardProps {
     module: ModuleWithProgress;
@@ -12,6 +13,7 @@ interface ModuleCardProps {
 }
 
 export function ModuleCard({ module, onUnlock, isUnlocking }: ModuleCardProps) {
+    const navigate = useNavigate();
     const isUnlocked = module.progress?.unlocked;
     const progress = module.progress?.completion_percentage || 0;
 
@@ -60,7 +62,12 @@ export function ModuleCard({ module, onUnlock, isUnlocking }: ModuleCardProps) {
                         {isUnlocking ? "Unlocking..." : "Unlock Module"}
                     </Button>
                 ) : (
-                    <Button variant="secondary">Continue Learning</Button>
+                    <Button
+                        variant="secondary"
+                        onClick={() => navigate(`/modules/${module.id}`, { state: { startCurriculum: true } })}
+                    >
+                        Continue Learning
+                    </Button>
                 )}
             </CardFooter>
         </Card>
