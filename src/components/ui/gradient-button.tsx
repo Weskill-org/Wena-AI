@@ -27,7 +27,7 @@ const GradientButton = forwardRef<HTMLButtonElement, GradientButtonProps>(
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         className={cn(
-          "px-6 py-3 rounded-2xl font-semibold text-white transition-smooth",
+          "px-6 py-3 rounded-2xl font-semibold text-white transition-smooth flex items-center justify-center",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           variants[variant],
           glow && glowClasses[variant],

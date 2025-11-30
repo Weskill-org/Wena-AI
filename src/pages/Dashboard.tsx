@@ -3,6 +3,10 @@ import { Bot, BookOpen, Zap, Target, Gift } from "lucide-react";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AdaptiveTimeline } from "@/components/modules/AdaptiveTimeline";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { moduleService } from "@/services/moduleService";
 
 const quickActions = [
   { icon: Bot, label: "AI Buddy", gradient: "primary", path: "/chat" },
@@ -12,8 +16,48 @@ const quickActions = [
 ];
 
 export default function Dashboard() {
-  const userName = "Alex";
+  const { user } = useAuth();
   const greeting = getGreeting();
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: wallet } = useQuery({
+    queryKey: ['wallet', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('credits')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: modules } = useQuery({
+    queryKey: ['modules', user?.id],
+    queryFn: moduleService.getModules,
+    enabled: !!user?.id,
+  });
+
+  const activeModules = modules
+    ?.filter(m => (m.progress?.completion_percentage || 0) < 100)
+    .slice(0, 3) || [];
+
+  const userName = profile?.full_name || "Learner";
 
   return (
     <div className="min-h-screen pb-20 px-4 pt-8">
@@ -24,7 +68,7 @@ export default function Dashboard() {
         className="space-y-2 mb-8"
       >
         <h1 className="text-2xl font-bold">
-          {greeting}, <span className="bg-gradient-primary bg-clip-text text-transparent">{userName}</span>
+          {greeting}, <span className="text-primary">{userName}</span>
         </h1>
         <p className="text-muted-foreground">Ready to learn something new?</p>
       </motion.div>
@@ -72,11 +116,11 @@ export default function Dashboard() {
       >
         <div>
           <p className="text-muted-foreground text-sm mb-1">Credit Balance</p>
-          <div className="text-3xl font-bold bg-gradient-accent bg-clip-text text-transparent">
-            250
+          <div className="text-3xl font-bold text-accent">
+            {wallet?.credits || 0}
           </div>
         </div>
-        <GradientButton variant="accent" className="h-10">
+        <GradientButton variant="accent">
           <Gift className="w-4 h-4 mr-2" />
           Earn More
         </GradientButton>
@@ -118,32 +162,40 @@ export default function Dashboard() {
           transition={{ delay: 0.6 }}
           className="space-y-3"
         >
-          {[
-            { title: "Python Basics", progress: 75, color: "primary" },
-            { title: "AI Fundamentals", progress: 45, color: "secondary" },
-            { title: "Web Design", progress: 30, color: "accent" },
-          ].map((module, index) => (
-            <motion.div
-              key={module.title}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.7 + index * 0.1 }}
-              className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-4"
-            >
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold">{module.title}</h3>
-                <span className="text-sm text-muted-foreground">{module.progress}%</span>
-              </div>
-              <div className="bg-muted rounded-full h-1.5 overflow-hidden">
+          {activeModules.length > 0 ? (
+            activeModules.map((module, index) => {
+              const progress = module.progress?.completion_percentage || 0;
+              const colors = ["primary", "secondary", "accent"];
+              const color = colors[index % colors.length];
+
+              return (
                 <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${module.progress}%` }}
-                  transition={{ delay: 1 + index * 0.1, duration: 0.8 }}
-                  className={`bg-gradient-${module.color} h-full rounded-full`}
-                />
-              </div>
-            </motion.div>
-          ))}
+                  key={module.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.7 + index * 0.1 }}
+                  className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-4"
+                >
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-semibold">{module.title}</h3>
+                    <span className="text-sm text-muted-foreground">{progress}%</span>
+                  </div>
+                  <div className="bg-muted rounded-full h-1.5 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ delay: 1 + index * 0.1, duration: 0.8 }}
+                      className={`bg-gradient-${color} h-full rounded-full`}
+                    />
+                  </div>
+                </motion.div>
+              );
+            })
+          ) : (
+            <div className="text-center text-muted-foreground py-4">
+              No active modules. Start a new one!
+            </div>
+          )}
         </motion.div>
       </div>
 
