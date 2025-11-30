@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Bot, Mail, Lock, User, Phone, Calendar, Sparkles } from "lucide-react";
+import { Bot, Mail, Lock, User, Phone, Calendar, Sparkles, Gift } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,7 +20,17 @@ export default function Login() {
     dateOfBirth: "",
     password: "",
     confirmPassword: "",
+    referralCode: "",
   });
+
+  // Check for referral code in URL on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    if (refCode) {
+      setSignUpData(prev => ({ ...prev, referralCode: refCode.toUpperCase() }));
+    }
+  }, []);
 
   // Sign In form
   const [signInData, setSignInData] = useState({
@@ -63,6 +73,7 @@ export default function Login() {
       full_name: signUpData.fullName,
       phone_number: signUpData.phoneNumber,
       date_of_birth: signUpData.dateOfBirth,
+      referral_code: signUpData.referralCode || null,
     });
 
     if (error) {
@@ -347,6 +358,24 @@ export default function Login() {
                       onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
                       className="bg-input border-border rounded-xl h-12"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-referral" className="text-foreground flex items-center gap-2">
+                      <Gift className="w-4 h-4" />
+                      Referral Code (Optional)
+                    </Label>
+                    <Input
+                      id="signup-referral"
+                      type="text"
+                      placeholder="Enter referral code"
+                      value={signUpData.referralCode}
+                      onChange={(e) => setSignUpData({ ...signUpData, referralCode: e.target.value.toUpperCase() })}
+                      className="bg-input border-border rounded-xl h-12 uppercase"
+                      disabled={!!new URLSearchParams(window.location.search).get('ref')}
+                    />
+                    {signUpData.referralCode && (
+                      <p className="text-xs text-green-600">🎉 You'll earn bonus credits with this referral!</p>
+                    )}
                   </div>
                   <GradientButton
                     variant="primary"
