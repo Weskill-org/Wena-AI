@@ -75,6 +75,8 @@ export const moduleService = {
     },
 
     async getModuleDetails(moduleId: string) {
+        const { data: { user } } = await supabase.auth.getUser();
+
         const { data: module, error: moduleError } = await supabase
             .from("modules" as any)
             .select("*")
@@ -94,13 +96,92 @@ export const moduleService = {
 
         if (chaptersError) throw chaptersError;
 
-        // Sort lessons within chapters
+        // Fetch user progress for all lessons in this module
+        let lessonProgressMap: Record<string, any> = {};
+        if (user) {
+            const { data: progressData } = await supabase
+                .from("user_lesson_progress" as any)
+                .select("*")
+                .eq("user_id", user.id);
+
+            if (progressData) {
+                progressData.forEach((p: any) => {
+                    lessonProgressMap[p.lesson_id] = p;
+                });
+            }
+        }
+
+        // Sort lessons within chapters and attach progress
         const chaptersWithSortedLessons = (chapters as any[]).map(chapter => ({
             ...chapter,
-            lessons: chapter.lessons.sort((a: any, b: any) => a.order_index - b.order_index)
+            lessons: chapter.lessons
+                .sort((a: any, b: any) => a.order_index - b.order_index)
+                .map((lesson: any) => ({
+                    ...lesson,
+                    progress: lessonProgressMap[lesson.id] || null
+                }))
         }));
 
         return { module, chapters: chaptersWithSortedLessons };
+    },
+
+    async unlockLesson(lessonId: string, userId: string): Promise<void> {
+        const COST = 2;
+
+        // 1. Check wallet
+        const { data: wallet, error: walletError } = await supabase
+            .from("wallets")
+            .select("credits")
+            .eq("user_id", userId)
+            .single();
+
+        if (walletError) throw walletError;
+        if (!wallet || wallet.credits < COST) {
+            throw new Error("Insufficient credits");
+        }
+
+        // 2. Deduct credits
+        const { error: updateWalletError } = await supabase
+            .from("wallets")
+            .update({ credits: wallet.credits - COST })
+            .eq("user_id", userId);
+
+        if (updateWalletError) throw updateWalletError;
+
+        // 3. Unlock lesson
+        const { error: unlockError } = await supabase
+            .from("user_lesson_progress" as any)
+            .upsert({
+                user_id: userId,
+                lesson_id: lessonId,
+                unlocked: true,
+                // Preserve existing completion status if any (though upsert might overwrite if not careful, 
+                // but here we want to ensure it exists and is unlocked. 
+                // To be safe, we should probably check existence first or use a more careful query, 
+                // but standard upsert with default false for completed is risky if it was already completed?
+                // Actually, if it was completed, it's already unlocked conceptually.
+                // But let's assume we are unlocking a locked one.
+            }, { onConflict: "user_id, lesson_id" });
+
+        // Better approach for #3: Use update if exists, insert if not. 
+        // Or just upsert with ignoreDuplicates? No.
+        // Let's just do a simple upsert but we need to be careful not to reset 'completed' to false if it was true.
+        // Actually, if they are paying to unlock, it implies it wasn't completed (or unlocked) yet.
+        // So upserting `unlocked: true` is fine. If it was already there, we just update `unlocked`.
+        // Wait, if I upsert `{user_id, lesson_id, unlocked: true}`, and the row exists with `completed: true`, 
+        // will `completed` be reset to default (false) or null?
+        // Supabase upsert updates ONLY the specified columns if the row exists. 
+        // So `completed` should be preserved.
+
+        if (unlockError) throw unlockError;
+
+        // 4. Record transaction
+        await supabase.from("transactions").insert({
+            user_id: userId,
+            amount: COST,
+            type: "spent",
+            label: "Unlocked lesson"
+        });
     },
 
     async getLesson(lessonId: string) {

@@ -177,9 +177,16 @@ export default function LessonView() {
                             {isStructured && content.image_prompts && content.image_prompts.length > 0 && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                     {content.image_prompts.map((prompt: string, i: number) => (
-                                        <div key={i} className="bg-muted rounded-lg p-4 flex flex-col items-center justify-center text-center h-48 border-2 border-dashed">
-                                            <span className="text-xs text-muted-foreground uppercase tracking-widest mb-2">AI Image Concept</span>
-                                            <p className="text-sm italic">"{prompt}"</p>
+                                        <div key={i} className="rounded-xl overflow-hidden shadow-lg border border-border group relative">
+                                            <img
+                                                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`}
+                                                alt={prompt}
+                                                className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
+                                                loading="lazy"
+                                            />
+                                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <p className="text-xs text-white line-clamp-2">{prompt}</p>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -225,7 +232,7 @@ export default function LessonView() {
 
             <div className="flex justify-between items-center mt-8">
                 <Button variant="outline" onClick={() => generateContent(lesson)} disabled={generating}>
-                    <RefreshCw className="w-4 h-4 mr-2" /> Regenerate Content
+                    <RefreshCw className="w-4 h-4 mr-2" /> Create my Lesson
                 </Button>
 
                 {!isStructured && (

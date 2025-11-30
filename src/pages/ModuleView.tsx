@@ -1,103 +1,138 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { moduleService } from "@/services/moduleService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, PlayCircle, CheckCircle, Lock, BookOpen } from "lucide-react";
+import { Loader2, ArrowLeft, PlayCircle, CheckCircle, Lock, BookOpen, Unlock } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useToast } from "@/components/ui/use-toast";
 import CurriculumDriver from "@/components/modules/CurriculumDriver";
-
 import { useLocation } from "react-router-dom";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ModuleView() {
     const { moduleId } = useParams<{ moduleId: string }>();
     const navigate = useNavigate();
     const location = useLocation();
     const { toast } = useToast();
+    const { user } = useAuth();
     const [moduleData, setModuleData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [showDriver, setShowDriver] = useState(false);
 
-    useEffect(() => {
+    // Unlock Dialog State
+    const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
+    const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+    const [unlocking, setUnlocking] = useState(false);
+
+    const fetchDetails = async () => {
         if (!moduleId) return;
+        try {
+            const data = await moduleService.getModuleDetails(moduleId);
+            setModuleData(data);
+        } catch (error) {
+            console.error("Error fetching module details:", error);
+            toast({
+                title: "Error",
+                description: "Failed to load module details.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        const fetchDetails = async () => {
-            try {
-                const data = await moduleService.getModuleDetails(moduleId);
-                setModuleData(data);
-
-                // Check for auto-start from navigation state
-                if (location.state?.startCurriculum) {
-                    setShowDriver(true);
-                    // Clear state so it doesn't re-trigger on refresh (optional, but good practice)
-                    window.history.replaceState({}, document.title);
-                }
-            } catch (error) {
-                console.error("Error fetching module details:", error);
-                toast({
-                    title: "Error",
-                    description: "Failed to load module details.",
-                    variant: "destructive",
-                });
-            } finally {
-                setLoading(false);
-            }
-        };
-
+    useEffect(() => {
         fetchDetails();
+
+        if (location.state?.startCurriculum) {
+            setShowDriver(true);
+            window.history.replaceState({}, document.title);
+        }
     }, [moduleId]);
 
     const handleContinueLearning = () => {
-        console.log("handleContinueLearning called", JSON.stringify(moduleData, null, 2));
+        if (!moduleData || !moduleData.chapters) return;
 
-        if (!moduleData || !moduleData.chapters) {
-            console.log("No module data or chapters found");
-            return;
-        }
+        // Find the first incomplete lesson (that is unlocked or next in line)
+        // Actually, we should find the *first unlocked but incomplete* lesson.
+        // Or simply the first incomplete one, assuming sequential progression.
 
-        // Find the first incomplete lesson
-        for (const chapter of moduleData.chapters) {
-            console.log("Checking chapter:", chapter.title);
-            if (chapter.lessons) {
-                for (const lesson of chapter.lessons) {
-                    // Check if progress is missing or completed is false
-                    const isCompleted = lesson.progress?.completed === true;
-                    console.log(`Checking lesson: ${lesson.title} (${lesson.id}), Completed: ${isCompleted}`);
+        let allLessons: any[] = [];
+        moduleData.chapters.forEach((c: any) => {
+            if (c.lessons) allLessons = [...allLessons, ...c.lessons];
+        });
 
-                    if (!isCompleted) {
-                        console.log("Found incomplete lesson, navigating to:", lesson.id);
-                        navigate(`/modules/${moduleId}/lessons/${lesson.id}`);
-                        return;
-                    }
-                }
+        for (let i = 0; i < allLessons.length; i++) {
+            const lesson = allLessons[i];
+            const isCompleted = lesson.progress?.completed;
+
+            // If not completed, this is our candidate.
+            // But is it unlocked?
+            // Logic: It's unlocked if it's the first one OR prev is completed OR it's explicitly unlocked.
+            const prevCompleted = i === 0 || allLessons[i - 1].progress?.completed;
+            const explicitlyUnlocked = lesson.progress?.unlocked;
+
+            if (!isCompleted && (prevCompleted || explicitlyUnlocked)) {
+                navigate(`/ modules / ${moduleId} /lessons/${lesson.id} `);
+                return;
             }
         }
 
-        // Fallback: If we get here, either all are complete OR something is wrong.
-        // Let's just go to the very first lesson of the first chapter to be safe.
-        if (moduleData.chapters.length > 0 && moduleData.chapters[0].lessons && moduleData.chapters[0].lessons.length > 0) {
-            const firstLessonId = moduleData.chapters[0].lessons[0].id;
-            console.log("Fallback: Navigating to first lesson:", firstLessonId);
-            navigate(`/modules/${moduleId}/lessons/${firstLessonId}`);
-        } else {
-            console.log("No lessons found in any chapter.");
-            toast({
-                title: "Error",
-                description: "No lessons found in this module.",
-                variant: "destructive"
-            });
+        // Fallback
+        if (allLessons.length > 0) {
+            navigate(`/ modules / ${moduleId} /lessons/${allLessons[0].id} `);
         }
     };
 
     const handleDriverComplete = () => {
         setShowDriver(false);
-        // Here we would ideally save the "personalization" state
         toast({
             title: "Curriculum Personalized",
             description: "Your learning path has been updated.",
         });
-        // Navigate to first lesson or refresh
+    };
+
+    const handleLessonClick = (lesson: any, isUnlocked: boolean) => {
+        if (isUnlocked) {
+            navigate(`/ modules / ${moduleId} /lessons/${lesson.id} `);
+        } else {
+            setSelectedLessonId(lesson.id);
+            setUnlockDialogOpen(true);
+        }
+    };
+
+    const confirmUnlock = async () => {
+        if (!selectedLessonId || !user) return;
+        setUnlocking(true);
+        try {
+            await moduleService.unlockLesson(selectedLessonId, user.id);
+            toast({
+                title: "Lesson Unlocked",
+                description: "2 credits deducted.",
+            });
+            setUnlockDialogOpen(false);
+            fetchDetails(); // Refresh to show unlocked status
+        } catch (error: any) {
+            toast({
+                title: "Unlock Failed",
+                description: error.message || "Insufficient credits or error.",
+                variant: "destructive",
+            });
+        } finally {
+            setUnlocking(false);
+        }
     };
 
     if (loading) {
@@ -119,19 +154,10 @@ export default function ModuleView() {
 
     const { module, chapters } = moduleData;
 
-    // Helper to check if a chapter is unlocked
-    const isChapterUnlocked = (index: number) => {
-        if (index === 0) return true; // First chapter always unlocked
-        const prevChapter = chapters[index - 1];
-        // Check if all lessons in previous chapter are completed
-        // This requires 'progress' to be populated on lessons, which getModuleDetails does
-        // But we need to make sure the service actually returns lesson progress in the chapters query
-        // For now, we'll assume if any lesson in prev chapter is NOT complete, this one is locked.
-        // NOTE: The current getModuleDetails might not return lesson progress. We might need to fetch it.
-        // For this V1, let's assume simple logic: Unlocked if index == 0.
-        // TODO: Implement robust progress check.
-        return true; // Temporarily unlock all for testing flow
-    };
+    // Flatten lessons to calculate global index/status easily if needed, 
+    // but we can also do it iteratively.
+    let globalLessonIndex = 0;
+    let previousLessonCompleted = true; // Start true for the very first lesson
 
     return (
         <div className="container mx-auto py-8 px-4 pb-24">
@@ -150,54 +176,71 @@ export default function ModuleView() {
             </div>
 
             <div className="space-y-6">
-                {chapters.map((chapter: any, index: number) => {
-                    const unlocked = isChapterUnlocked(index);
-                    return (
-                        <Card key={chapter.id} className={!unlocked ? "opacity-75 bg-muted/50" : ""}>
-                            <CardHeader>
-                                <div className="flex justify-between items-center">
-                                    <CardTitle className="text-xl flex items-center gap-2">
-                                        {chapter.title}
-                                        {!unlocked && <Lock className="w-4 h-4 text-muted-foreground" />}
-                                    </CardTitle>
-                                    <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                                        Chapter {index + 1}
-                                    </span>
-                                </div>
-                                <p className="text-sm text-muted-foreground">{chapter.description}</p>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-2">
-                                    {chapter.lessons.map((lesson: any) => (
+                {chapters.map((chapter: any, index: number) => (
+                    <Card key={chapter.id}>
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <CardTitle className="text-xl flex items-center gap-2">
+                                    {chapter.title}
+                                </CardTitle>
+                                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                    Chapter {index + 1}
+                                </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{chapter.description}</p>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                {chapter.lessons.map((lesson: any) => {
+                                    // Determine unlock status
+                                    // Unlocked if: Previous lesson was completed OR this lesson is explicitly unlocked
+                                    const isUnlocked = previousLessonCompleted || lesson.progress?.unlocked;
+
+                                    // Update tracker for NEXT lesson
+                                    // The next lesson will be unlocked only if THIS lesson is completed.
+                                    const isCompleted = lesson.progress?.completed;
+                                    previousLessonCompleted = isCompleted;
+
+                                    return (
                                         <div
                                             key={lesson.id}
-                                            className={`flex items-center justify-between p-3 rounded-lg border border-transparent transition-colors
-                                                ${unlocked
+                                            className={`flex items - center justify - between p - 3 rounded - lg border border - transparent transition - colors
+                                                ${isUnlocked
                                                     ? "hover:bg-accent cursor-pointer hover:border-border"
-                                                    : "cursor-not-allowed opacity-50"
-                                                }`}
-                                            onClick={() => unlocked && navigate(`/modules/${moduleId}/lessons/${lesson.id}`)}
+                                                    : "opacity-70 bg-muted/30 cursor-pointer hover:bg-muted/50"
+                                                } `}
+                                            onClick={() => handleLessonClick(lesson, isUnlocked)}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-full ${unlocked ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                                                    {lesson.progress?.completed ? (
+                                                <div className={`p - 2 rounded - full ${isUnlocked ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"} `}>
+                                                    {isCompleted ? (
                                                         <CheckCircle className="w-5 h-5" />
-                                                    ) : (
+                                                    ) : isUnlocked ? (
                                                         <PlayCircle className="w-5 h-5" />
+                                                    ) : (
+                                                        <Lock className="w-5 h-5" />
                                                     )}
                                                 </div>
                                                 <span className="font-medium">{lesson.title}</span>
                                             </div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {lesson.progress?.completed ? "Completed" : "Start"}
+                                            <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                                {isCompleted ? (
+                                                    "Completed"
+                                                ) : isUnlocked ? (
+                                                    "Start"
+                                                ) : (
+                                                    <span className="flex items-center text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                                                        <Lock className="w-3 h-3 mr-1" /> 2 Credits
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             <CurriculumDriver
@@ -208,7 +251,26 @@ export default function ModuleView() {
                 moduleId={moduleId}
             />
 
+            <AlertDialog open={unlockDialogOpen} onOpenChange={setUnlockDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Unlock Lesson?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This lesson is currently locked. You can unlock it immediately for 2 credits.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmUnlock} disabled={unlocking}>
+                            {unlocking ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Unlock className="w-4 h-4 mr-2" />}
+                            Unlock for 2 Credits
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <BottomNav />
         </div>
     );
 }
+
