@@ -106,6 +106,69 @@ export type Database = {
           },
         ]
       }
+      coupon_codes: {
+        Row: {
+          code: string
+          created_at: string
+          credits: number
+          id: string
+          is_redeemed: boolean
+          redeemed_at: string | null
+          redeemed_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          credits: number
+          id?: string
+          is_redeemed?: boolean
+          redeemed_at?: string | null
+          redeemed_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          credits?: number
+          id?: string
+          is_redeemed?: boolean
+          redeemed_at?: string | null
+          redeemed_by?: string | null
+        }
+        Relationships: []
+      }
+      discount_codes: {
+        Row: {
+          code: string
+          created_at: string
+          discount_type: string
+          discount_value: number
+          id: string
+          is_active: boolean
+          max_discount: number | null
+          min_cart_value: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          discount_type: string
+          discount_value: number
+          id?: string
+          is_active?: boolean
+          max_discount?: number | null
+          min_cart_value?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          is_active?: boolean
+          max_discount?: number | null
+          min_cart_value?: number
+        }
+        Relationships: []
+      }
       lessons: {
         Row: {
           chapter_id: string
@@ -171,6 +234,45 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_orders: {
+        Row: {
+          amount: number
+          created_at: string
+          credits: number
+          discount_applied: number | null
+          discount_code: string | null
+          id: string
+          payment_id: string | null
+          razorpay_order_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          credits: number
+          discount_applied?: number | null
+          discount_code?: string | null
+          id?: string
+          payment_id?: string | null
+          razorpay_order_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credits?: number
+          discount_applied?: number | null
+          discount_code?: string | null
+          id?: string
+          payment_id?: string | null
+          razorpay_order_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -198,6 +300,30 @@ export type Database = {
           id?: string
           phone_number?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      referral_codes: {
+        Row: {
+          created_at: string
+          id: string
+          referral_code: string
+          total_referrals: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referral_code: string
+          total_referrals?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referral_code?: string
+          total_referrals?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -354,6 +480,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_referral_code: {
+        Args: { user_id_param: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
