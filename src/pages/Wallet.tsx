@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { loadRazorpayScript } from "@/lib/razorpay";
 
 declare global {
   interface Window {
@@ -151,16 +152,27 @@ export default function Wallet() {
     try {
       const amount = parseInt(selectedPlan);
       const credits = amount; // 1:1 ratio
-      
+
       const { data: orderData, error } = await supabase.functions.invoke('create-razorpay-order', {
-        body: { 
-          amount, 
+        body: {
+          amount,
           credits,
-          discountCode: discountCode || null 
+          discountCode: discountCode || null
         },
       });
 
       if (error) throw error;
+
+      const res = await loadRazorpayScript();
+
+      if (!res) {
+        toast({
+          title: "Error",
+          description: "Razorpay SDK failed to load. Please check your internet connection.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       const options = {
         key: orderData.keyId,
@@ -244,256 +256,254 @@ export default function Wallet() {
 
   return (
     <>
-      <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
+
       <div className="min-h-screen pb-20 px-4 pt-8">
-      {/* Balance Card */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-gradient-accent rounded-3xl p-6 mb-6 glow-accent"
-      >
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <p className="text-white/80 text-sm mb-1">Total Balance</p>
-            <h1 className="text-5xl font-bold text-white">{wallet?.credits || 0}</h1>
-            <p className="text-white/80 text-sm mt-1">Credits</p>
-          </div>
-          <motion.div
-            animate={{ rotate: [0, 10, -10, 0] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-            className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center"
-          >
-            <Coins className="w-8 h-8 text-white" />
-          </motion.div>
-        </div>
-        
-        <div className="flex gap-3">
-          <GradientButton variant="primary" className="flex-1 h-12" onClick={() => setRedeemDialogOpen(true)}>
-            <Gift className="w-4 h-4 mr-2" />
-            Redeem Code
-          </GradientButton>
-          <GradientButton variant="secondary" className="flex-1 h-12" onClick={() => setTopUpDialogOpen(true)}>
-            <TrendingUp className="w-4 h-4 mr-2" />
-            Top Up
-          </GradientButton>
-        </div>
-      </motion.div>
-
-      {/* Referral Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-gradient-primary rounded-3xl p-5 mb-6 glow-primary"
-      >
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h3 className="text-white font-semibold mb-1">Refer & Earn</h3>
-            <p className="text-white/80 text-sm">Get 50 credits per friend</p>
-            <p className="text-white/60 text-xs mt-1">Total Referrals: {referralCode?.total_referrals || 0}</p>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 flex justify-between items-center">
-            <code className="text-white font-mono font-semibold text-sm">
-              {referralCode?.referral_code || "Loading..."}
-            </code>
-            <button 
-              onClick={copyReferralCode}
-              className="text-white text-sm font-semibold flex items-center gap-1"
+        {/* Balance Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-gradient-accent rounded-3xl p-6 mb-6 glow-accent"
+        >
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <p className="text-white/80 text-sm mb-1">Total Balance</p>
+              <h1 className="text-5xl font-bold text-white">{wallet?.credits || 0}</h1>
+              <p className="text-white/80 text-sm mt-1">Credits</p>
+            </div>
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+              className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center"
             >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copied ? "Copied" : "Copy"}
-            </button>
+              <Coins className="w-8 h-8 text-white" />
+            </motion.div>
           </div>
-          <Button 
-            onClick={shareReferralLink}
-            className="w-full bg-white/20 hover:bg-white/30 text-white border-0"
-          >
-            Share Referral Link
-          </Button>
-        </div>
-      </motion.div>
 
-      {/* Transaction History */}
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
-        {!transactions || transactions.length === 0 ? (
-          <div className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-8 text-center">
-            <p className="text-muted-foreground">No transactions yet</p>
+          <div className="flex gap-3">
+            <GradientButton variant="primary" className="flex-1 h-12" onClick={() => setRedeemDialogOpen(true)}>
+              <Gift className="w-4 h-4 mr-2" />
+              Redeem Code
+            </GradientButton>
+            <GradientButton variant="secondary" className="flex-1 h-12" onClick={() => setTopUpDialogOpen(true)}>
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Top Up
+            </GradientButton>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {transactions.map((tx, index) => (
-              <motion.div
-                key={tx.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 + index * 0.1 }}
-                className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-4 flex justify-between items-center"
+        </motion.div>
+
+        {/* Referral Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-gradient-primary rounded-3xl p-5 mb-6 glow-primary"
+        >
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-white font-semibold mb-1">Refer & Earn</h3>
+              <p className="text-white/80 text-sm">Get 50 credits per friend</p>
+              <p className="text-white/60 text-xs mt-1">Total Referrals: {referralCode?.total_referrals || 0}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 flex justify-between items-center">
+              <code className="text-white font-mono font-semibold text-sm">
+                {referralCode?.referral_code || "Loading..."}
+              </code>
+              <button
+                onClick={copyReferralCode}
+                className="text-white text-sm font-semibold flex items-center gap-1"
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    tx.type === "earned" ? "bg-accent/20" : "bg-destructive/20"
-                  }`}>
-                    {tx.type === "earned" ? (
-                      <TrendingUp className={`w-5 h-5 text-accent`} />
-                    ) : (
-                      <Coins className={`w-5 h-5 text-destructive`} />
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-semibold">{tx.label}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(tx.created_at), { addSuffix: true })}
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <Button
+              onClick={shareReferralLink}
+              className="w-full bg-white/20 hover:bg-white/30 text-white border-0"
+            >
+              Share Referral Link
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* Transaction History */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
+          {!transactions || transactions.length === 0 ? (
+            <div className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-8 text-center">
+              <p className="text-muted-foreground">No transactions yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {transactions.map((tx, index) => (
+                <motion.div
+                  key={tx.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 + index * 0.1 }}
+                  className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-4 flex justify-between items-center"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.type === "earned" ? "bg-accent/20" : "bg-destructive/20"
+                      }`}>
+                      {tx.type === "earned" ? (
+                        <TrendingUp className={`w-5 h-5 text-accent`} />
+                      ) : (
+                        <Coins className={`w-5 h-5 text-destructive`} />
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-semibold">{tx.label}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(tx.created_at), { addSuffix: true })}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className={`text-lg font-bold ${
-                  tx.type === "earned" ? "text-accent" : "text-destructive"
-                }`}>
-                  {tx.amount > 0 ? "+" : ""}{tx.amount}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <BottomNav />
-
-      {/* Redeem Coupon Dialog */}
-      <Dialog open={redeemDialogOpen} onOpenChange={setRedeemDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Redeem Credit Code</DialogTitle>
-            <DialogDescription>
-              Enter your credit code to add credits to your wallet
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="coupon">Credit Code</Label>
-              <Input
-                id="coupon"
-                placeholder="Enter code"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                className="uppercase"
-              />
+                  <div className={`text-lg font-bold ${tx.type === "earned" ? "text-accent" : "text-destructive"
+                    }`}>
+                    {tx.amount > 0 ? "+" : ""}{tx.amount}
+                  </div>
+                </motion.div>
+              ))}
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRedeemDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleRedeemCoupon}
-              disabled={redeemCouponMutation.isPending}
-            >
-              {redeemCouponMutation.isPending ? "Redeeming..." : "Redeem"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          )}
+        </div>
 
-      {/* Top Up Dialog */}
-      <Dialog open={topUpDialogOpen} onOpenChange={setTopUpDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Top Up Credits</DialogTitle>
-            <DialogDescription>
-              Choose a plan and complete payment to add credits
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Select Plan</Label>
-              <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan}>
-                <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-accent">
-                  <RadioGroupItem value="100" id="plan1" />
-                  <Label htmlFor="plan1" className="flex-1 cursor-pointer">
-                    <div className="font-semibold">100 Credits</div>
-                    <div className="text-sm text-muted-foreground">₹100</div>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-accent">
-                  <RadioGroupItem value="500" id="plan2" />
-                  <Label htmlFor="plan2" className="flex-1 cursor-pointer">
-                    <div className="font-semibold">500 Credits</div>
-                    <div className="text-sm text-muted-foreground">₹500</div>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-accent">
-                  <RadioGroupItem value="1000" id="plan3" />
-                  <Label htmlFor="plan3" className="flex-1 cursor-pointer">
-                    <div className="font-semibold">1000 Credits</div>
-                    <div className="text-sm text-muted-foreground">₹1000</div>
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
+        <BottomNav />
 
-            <div className="space-y-2">
-              <Label htmlFor="discount">Discount Code (Optional)</Label>
-              <div className="flex gap-2">
+        {/* Redeem Coupon Dialog */}
+        <Dialog open={redeemDialogOpen} onOpenChange={setRedeemDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Redeem Credit Code</DialogTitle>
+              <DialogDescription>
+                Enter your credit code to add credits to your wallet
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="coupon">Credit Code</Label>
                 <Input
-                  id="discount"
-                  placeholder="Enter discount code"
-                  value={discountCode}
-                  onChange={(e) => {
-                    setDiscountCode(e.target.value.toUpperCase());
-                    setDiscountInfo(null);
-                  }}
+                  id="coupon"
+                  placeholder="Enter code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   className="uppercase"
                 />
-                <Button 
-                  variant="outline" 
-                  onClick={handleValidateDiscount}
-                  disabled={!discountCode || validateDiscountMutation.isPending}
-                >
-                  Apply
-                </Button>
               </div>
-              {discountInfo && (
-                <div className="text-sm text-green-600">
-                  Discount: -₹{discountInfo.discountAmount} | Final: ₹{discountInfo.finalAmount}
-                </div>
-              )}
             </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRedeemDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRedeemCoupon}
+                disabled={redeemCouponMutation.isPending}
+              >
+                {redeemCouponMutation.isPending ? "Redeeming..." : "Redeem"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-            <div className="bg-muted p-3 rounded-lg">
-              <div className="flex justify-between text-sm mb-1">
-                <span>Subtotal:</span>
-                <span>₹{selectedPlan}</span>
+        {/* Top Up Dialog */}
+        <Dialog open={topUpDialogOpen} onOpenChange={setTopUpDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Top Up Credits</DialogTitle>
+              <DialogDescription>
+                Choose a plan and complete payment to add credits
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Select Plan</Label>
+                <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan}>
+                  <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-accent">
+                    <RadioGroupItem value="100" id="plan1" />
+                    <Label htmlFor="plan1" className="flex-1 cursor-pointer">
+                      <div className="font-semibold">100 Credits</div>
+                      <div className="text-sm text-muted-foreground">₹100</div>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-accent">
+                    <RadioGroupItem value="500" id="plan2" />
+                    <Label htmlFor="plan2" className="flex-1 cursor-pointer">
+                      <div className="font-semibold">500 Credits</div>
+                      <div className="text-sm text-muted-foreground">₹500</div>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-accent">
+                    <RadioGroupItem value="1000" id="plan3" />
+                    <Label htmlFor="plan3" className="flex-1 cursor-pointer">
+                      <div className="font-semibold">1000 Credits</div>
+                      <div className="text-sm text-muted-foreground">₹1000</div>
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
-              {discountInfo && (
-                <div className="flex justify-between text-sm text-green-600 mb-1">
-                  <span>Discount:</span>
-                  <span>-₹{discountInfo.discountAmount}</span>
+
+              <div className="space-y-2">
+                <Label htmlFor="discount">Discount Code (Optional)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="discount"
+                    placeholder="Enter discount code"
+                    value={discountCode}
+                    onChange={(e) => {
+                      setDiscountCode(e.target.value.toUpperCase());
+                      setDiscountInfo(null);
+                    }}
+                    className="uppercase"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={handleValidateDiscount}
+                    disabled={!discountCode || validateDiscountMutation.isPending}
+                  >
+                    Apply
+                  </Button>
                 </div>
-              )}
-              <div className="flex justify-between font-semibold pt-2 border-t">
-                <span>Total:</span>
-                <span>₹{discountInfo ? discountInfo.finalAmount : selectedPlan}</span>
+                {discountInfo && (
+                  <div className="text-sm text-green-600">
+                    Discount: -₹{discountInfo.discountAmount} | Final: ₹{discountInfo.finalAmount}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-muted p-3 rounded-lg">
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Subtotal:</span>
+                  <span>₹{selectedPlan}</span>
+                </div>
+                {discountInfo && (
+                  <div className="flex justify-between text-sm text-green-600 mb-1">
+                    <span>Discount:</span>
+                    <span>-₹{discountInfo.discountAmount}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold pt-2 border-t">
+                  <span>Total:</span>
+                  <span>₹{discountInfo ? discountInfo.finalAmount : selectedPlan}</span>
+                </div>
               </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setTopUpDialogOpen(false);
-              setDiscountCode("");
-              setDiscountInfo(null);
-            }}>
-              Cancel
-            </Button>
-            <Button onClick={handleTopUp}>
-              Proceed to Payment
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setTopUpDialogOpen(false);
+                setDiscountCode("");
+                setDiscountInfo(null);
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleTopUp}>
+                Proceed to Payment
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </>
   );
 }
