@@ -1,1 +1,13 @@
 project_id = "syqnxceobkvvwwpcfhdm"
+
+[functions.redeem-coupon]
+verify_jwt = true
+
+[functions.create-razorpay-order]
+verify_jwt = true
+
+[functions.verify-razorpay-payment]
+verify_jwt = true
+
+[functions.validate-discount]
+verify_jwt = true

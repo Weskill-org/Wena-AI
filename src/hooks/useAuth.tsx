@@ -18,6 +18,7 @@ interface SignUpMetadata {
   full_name: string;
   phone_number: string;
   date_of_birth: string;
+  referral_code?: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
