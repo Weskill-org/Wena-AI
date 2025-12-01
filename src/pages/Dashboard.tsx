@@ -4,9 +4,11 @@ import { GradientButton } from "@/components/ui/gradient-button";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AdaptiveTimeline } from "@/components/modules/AdaptiveTimeline";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { moduleService } from "@/services/moduleService";
+import { personaService } from "@/services/personaService";
 
 const quickActions = [
   { icon: Bot, label: "AI Buddy", gradient: "primary", path: "/chat" },
@@ -17,6 +19,7 @@ const quickActions = [
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const greeting = getGreeting();
 
   const { data: profile } = useQuery({
@@ -50,6 +53,12 @@ export default function Dashboard() {
   const { data: modules } = useQuery({
     queryKey: ['modules', user?.id],
     queryFn: moduleService.getModules,
+    enabled: !!user?.id,
+  });
+
+  const { data: flashcardProgress } = useQuery({
+    queryKey: ['flashcardProgress', user?.id],
+    queryFn: () => personaService.getTodayProgress(user!.id),
     enabled: !!user?.id,
   });
 
@@ -131,19 +140,24 @@ export default function Dashboard() {
         <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 gap-4">
           {quickActions.map((action, index) => (
-            <motion.a
+            <motion.div
               key={action.label}
-              href={action.path}
+              onClick={() => navigate(action.path)}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 + index * 0.1 }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className={`bg-gradient-${action.gradient} rounded-2xl p-6 flex flex-col items-center justify-center gap-3 min-h-[140px] transition-smooth`}
+              className={`bg-gradient-${action.gradient} rounded-2xl p-6 flex flex-col items-center justify-center gap-3 min-h-[140px] transition-smooth relative overflow-hidden cursor-pointer`}
             >
+              {action.label === "Flashcards" && (
+                <div className="absolute top-2 right-2 bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] text-white font-medium">
+                  {flashcardProgress || 0}/3 Today
+                </div>
+              )}
               <action.icon className="w-8 h-8 text-white" />
               <span className="text-white font-semibold">{action.label}</span>
-            </motion.a>
+            </motion.div>
           ))}
         </div>
       </div>

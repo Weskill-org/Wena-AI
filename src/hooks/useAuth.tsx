@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, metadata: SignUpMetadata) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, metadata: SignUpMetadata) => Promise<{ data: any; error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithMagicLink: (email: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -35,12 +35,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
-        if (event === 'SIGNED_IN' && session) {
-          setTimeout(() => {
-            navigate('/');
-          }, 0);
-        }
       }
     );
 
@@ -64,8 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, metadata: SignUpMetadata) => {
     const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -73,15 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: metadata
       }
     });
-    
+
     if (!error) {
       toast({
         title: "Welcome to WeSkill! 🎉",
         description: "Please check your email to verify your account.",
       });
     }
-    
-    return { error };
+
+    return { data, error };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -89,34 +83,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
-    
+
     if (!error) {
       toast({
         title: "Welcome back! 👋",
         description: "You've successfully signed in.",
       });
     }
-    
+
     return { error };
   };
 
   const signInWithMagicLink = async (email: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: redirectUrl,
       }
     });
-    
+
     if (!error) {
       toast({
         title: "Magic link sent! ✨",
         description: "Check your email for the login link.",
       });
     }
-    
+
     return { error };
   };
 

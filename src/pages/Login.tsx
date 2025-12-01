@@ -7,11 +7,12 @@ import { Bot, Mail, Lock, User, Phone, Calendar, Sparkles, Gift } from "lucide-r
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { personaService } from "@/services/personaService";
 
 export default function Login() {
   const { signUp, signIn, signInWithMagicLink, user } = useAuth();
   const [loading, setLoading] = useState(false);
-  
+
   // Sign Up form
   const [signUpData, setSignUpData] = useState({
     fullName: "",
@@ -49,7 +50,7 @@ export default function Login() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (signUpData.password !== signUpData.confirmPassword) {
       toast({
         title: "Passwords don't match",
@@ -69,7 +70,7 @@ export default function Login() {
     }
 
     setLoading(true);
-    const { error } = await signUp(signUpData.email, signUpData.password, {
+    const { data, error } = await signUp(signUpData.email, signUpData.password, {
       full_name: signUpData.fullName,
       phone_number: signUpData.phoneNumber,
       date_of_birth: signUpData.dateOfBirth,
@@ -82,13 +83,23 @@ export default function Login() {
         description: error.message,
         variant: "destructive",
       });
+    } else if (data?.user?.id) {
+      // Initialize Persona
+      try {
+        await personaService.updatePersona(data.user.id, {
+          name: signUpData.fullName,
+          date_of_birth: signUpData.dateOfBirth
+        });
+      } catch (e) {
+        console.error("Error initializing persona:", e);
+      }
     }
     setLoading(false);
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!signInData.email || !signInData.password) {
       toast({
         title: "Missing information",
@@ -113,7 +124,7 @@ export default function Login() {
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!magicLinkEmail) {
       toast({
         title: "Email required",
@@ -141,7 +152,7 @@ export default function Login() {
       {/* Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10" />
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iaHNsKDI4MCwgMTAwJSwgNzAlKSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDUiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-40" />
-      
+
       {/* Floating Elements */}
       <motion.div
         className="absolute top-20 left-10 w-20 h-20 rounded-full bg-primary/20 blur-xl"
@@ -169,7 +180,7 @@ export default function Login() {
           transition={{ delay: 0.2, type: "spring" }}
         >
           <motion.div
-            animate={{ 
+            animate={{
               rotate: [0, 5, -5, 0],
               scale: [1, 1.05, 1]
             }}
@@ -179,7 +190,7 @@ export default function Login() {
             <Bot className="w-10 h-10 text-white" />
           </motion.div>
           <div className="text-center">
-            <motion.h1 
+            <motion.h1
               className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent flex items-center gap-2 justify-center"
               animate={{ opacity: [1, 0.8, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
@@ -434,7 +445,7 @@ export default function Login() {
         </motion.div>
 
         {/* Footer */}
-        <motion.p 
+        <motion.p
           className="text-center text-xs text-muted-foreground mt-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
