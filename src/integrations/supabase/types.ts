@@ -17,6 +17,7 @@ export type Database = {
       ai_personas: {
         Row: {
           created_at: string
+          details: Json | null
           id: string
           persona_text: string | null
           updated_at: string
@@ -24,6 +25,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          details?: Json | null
           id?: string
           persona_text?: string | null
           updated_at?: string
@@ -31,6 +33,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          details?: Json | null
           id?: string
           persona_text?: string | null
           updated_at?: string
@@ -168,6 +171,71 @@ export type Database = {
           min_cart_value?: number
         }
         Relationships: []
+      }
+      flashcard_questions: {
+        Row: {
+          category: string
+          created_at: string
+          field_key: string
+          id: string
+          input_type: string
+          options: Json | null
+          order_index: number
+          question_text: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          field_key: string
+          id?: string
+          input_type?: string
+          options?: Json | null
+          order_index?: number
+          question_text: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          field_key?: string
+          id?: string
+          input_type?: string
+          options?: Json | null
+          order_index?: number
+          question_text?: string
+        }
+        Relationships: []
+      }
+      flashcard_responses: {
+        Row: {
+          answered_at: string
+          id: string
+          question_id: string
+          response: string
+          user_id: string
+        }
+        Insert: {
+          answered_at?: string
+          id?: string
+          question_id: string
+          response: string
+          user_id: string
+        }
+        Update: {
+          answered_at?: string
+          id?: string
+          question_id?: string
+          response?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcard_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "flashcard_questions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lessons: {
         Row: {
