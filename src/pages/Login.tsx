@@ -201,6 +201,9 @@ export default function Login() {
             <p className="text-muted-foreground mt-2 text-lg">
               Your AI buddy for personalized learning ✨
             </p>
+            <p className="text-xs text-muted-foreground/80 mt-1">
+              1 Credit = ₹1
+            </p>
           </div>
         </motion.div>
 
@@ -385,8 +388,13 @@ export default function Login() {
                       disabled={!!new URLSearchParams(window.location.search).get('ref')}
                     />
                     {signUpData.referralCode && (
-                      <p className="text-xs text-green-600">🎉 You'll earn bonus credits with this referral!</p>
+                      <p className="text-xs text-primary font-medium bg-primary/10 rounded-lg px-3 py-2 mt-2">
+                        🎉 Get 100 extra credits when you sign up with this referral code!
+                      </p>
                     )}
+                    <p className="text-xs text-muted-foreground/70">
+                      New users get 50 credits. Use a referral code to get 100 bonus credits (total 150)!
+                    </p>
                   </div>
                   <GradientButton
                     variant="primary"
