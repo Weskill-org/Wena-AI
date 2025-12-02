@@ -191,15 +191,15 @@ export default function Login() {
           </motion.div>
           <div className="text-center">
             <motion.h1
-              className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent flex items-center gap-2 justify-center"
+              className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent flex items-center gap-2 justify-center"
               animate={{ opacity: [1, 0.8, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              WeSkill AI
+              Wena AI - Personal Tutor
               <Sparkles className="w-6 h-6 text-primary animate-pulse" />
             </motion.h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              Your AI buddy for personalized learning ✨
+              World's First Fully AI Based Learning Platform
             </p>
             <p className="text-xs text-muted-foreground/80 mt-1">
               1 Credit = ₹1
