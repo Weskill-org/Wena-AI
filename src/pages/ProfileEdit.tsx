@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,7 +46,8 @@ export default function ProfileEdit() {
   });
 
   // Update form when profile loads
-  useState(() => {
+  // Update form when profile loads
+  useEffect(() => {
     if (profile) {
       setFormData({
         full_name: profile.full_name || "",
@@ -54,7 +55,7 @@ export default function ProfileEdit() {
         date_of_birth: profile.date_of_birth || "",
       });
     }
-  });
+  }, [profile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -141,7 +142,7 @@ export default function ProfileEdit() {
       if (updateError) throw updateError;
 
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
-      
+
       toast({
         title: "Avatar updated",
         description: "Your profile picture has been updated successfully.",
