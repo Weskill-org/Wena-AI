@@ -43,8 +43,6 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits }) => 
             return;
         }
 
-        onDeductCredit();
-        setError(null);
 
         // Initialize Client
         if (!liveClient.current) {
@@ -60,6 +58,9 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits }) => 
                 onConnect: () => {
                     setActive(true);
                     setTranscript(prev => [...prev, `System: Connected as ${selectedRole}`]);
+                },
+                onResponse: () => {
+                    onDeductCredit();
                 },
                 onDisconnect: () => {
                     setActive(false);

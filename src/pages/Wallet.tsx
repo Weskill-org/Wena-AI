@@ -53,6 +53,7 @@ export default function Wallet() {
         .from('transactions')
         .select('*')
         .eq('user_id', user?.id)
+        .neq('type', 'ai_usage') // Filter out AI usage deductions
         .order('created_at', { ascending: false })
         .limit(10);
       if (error) throw error;

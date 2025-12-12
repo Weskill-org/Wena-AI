@@ -16,6 +16,7 @@ export interface LiveClientOptions {
     onDisconnect?: () => void;
     onVolumeChange?: (volume: number) => void;
     onError?: (error: any) => void;
+    onResponse?: () => void;
 }
 
 // Utility to encode audio data for Gemini
@@ -160,6 +161,8 @@ export class GeminiLiveClient {
 
                             // Mock volume for model talking
                             this.config.onVolumeChange?.(0.5);
+                            this.config.onResponse?.();
+
                         }
 
                         // Handle Interruption

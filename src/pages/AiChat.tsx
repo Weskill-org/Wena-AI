@@ -2,16 +2,52 @@ import VoiceMode from "@/components/ui/VoiceMode";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AiChat() {
-  // Simulation of user credits
-  const [credits, setCredits] = useState(100);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Fetch user's wallet to get credits
+  const { data: wallet } = useQuery({
+    queryKey: ['wallet', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const credits = wallet?.credits || 0;
+
+  // Mutation to deduct purchase usage
+  const deductUsageMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id || credits <= 0) return;
+
+      // Use secure RPC to deduct credits and log transaction
+      const { error } = await supabase.rpc('deduct_ai_credits', { amount: 1 });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+    },
+    onError: (error) => {
+      console.error("Failed to deduct credit:", error);
+      toast.error("Failed to process credit deduction");
+    }
+  });
 
   const handleDeductCredit = () => {
-    if (credits > 0) {
-      setCredits((prev) => prev - 1);
-      // toast.success("Credit deducted for voice session");
-    }
+    deductUsageMutation.mutate();
   };
 
   return (
