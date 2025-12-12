@@ -129,7 +129,7 @@ export default function Dashboard() {
             {wallet?.credits || 0}
           </div>
         </div>
-        <GradientButton variant="accent">
+        <GradientButton variant="accent" onClick={() => navigate('/referral')}>
           <Gift className="w-4 h-4 mr-2" />
           Earn More
         </GradientButton>
