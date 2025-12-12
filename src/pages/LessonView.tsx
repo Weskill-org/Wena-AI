@@ -43,9 +43,10 @@ export default function LessonView() {
 
                 setLesson({ ...data, content: parsedContent });
 
-                // If content is empty, generate it
-                if (!data.content) {
-                    generateContent(data);
+                // If content is empty OR it's just a simple string (summary), generate full content
+                if (!data.content || (typeof data.content === 'string' && !data.content.startsWith('{'))) {
+                    // Pass the existing content as summary if it exists
+                    generateContent(data, typeof data.content === 'string' ? data.content : undefined);
                 }
             } catch (error) {
                 console.error("Error fetching lesson:", error);
@@ -62,7 +63,7 @@ export default function LessonView() {
         fetchLesson();
     }, [lessonId]);
 
-    const generateContent = async (lessonData: any) => {
+    const generateContent = async (lessonData: any, summaryContext?: string) => {
         setGenerating(true);
         try {
             // Retrieve personalization context if available
@@ -72,7 +73,8 @@ export default function LessonView() {
                 lessonData.title,
                 lessonData.chapter.module.title,
                 lessonData.chapter.title,
-                personalizationContext || undefined
+                personalizationContext || undefined,
+                summaryContext
             );
 
             // Update local state
@@ -169,7 +171,9 @@ export default function LessonView() {
                     {generating ? (
                         <div className="flex flex-col items-center justify-center py-12">
                             <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-                            <p className="text-muted-foreground">AI Buddy is writing your lesson...</p>
+                            <p className="text-muted-foreground">
+                                {typeof lesson.content === 'string' ? "AI Buddy is expading your lesson from the summary..." : "AI Buddy is writing your lesson..."}
+                            </p>
                         </div>
                     ) : (
                         <div className="space-y-6">

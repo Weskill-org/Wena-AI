@@ -85,7 +85,7 @@ export default function ModuleView() {
             const explicitlyUnlocked = lesson.progress?.unlocked;
 
             if (!isCompleted && (prevCompleted || explicitlyUnlocked)) {
-                navigate(`/ modules / ${moduleId} /lessons/${lesson.id} `);
+                navigate(`/modules/${moduleId}/lessons/${lesson.id}`);
                 return;
             }
         }
@@ -106,7 +106,7 @@ export default function ModuleView() {
 
     const handleLessonClick = (lesson: any, isUnlocked: boolean) => {
         if (isUnlocked) {
-            navigate(`/ modules / ${moduleId} /lessons/${lesson.id} `);
+            navigate(`/modules/${moduleId}/lessons/${lesson.id}`);
         } else {
             setSelectedLessonId(lesson.id);
             setUnlockDialogOpen(true);

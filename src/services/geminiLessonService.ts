@@ -9,7 +9,7 @@ if (!API_KEY) {
 const genAI = new GoogleGenerativeAI(API_KEY || "");
 
 export const geminiLessonService = {
-  async generateLessonContent(topic: string, moduleContext: string, chapterContext: string, personalizationContext?: string) {
+  async generateLessonContent(topic: string, moduleContext: string, chapterContext: string, personalizationContext?: string, summaryContext?: string) {
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
@@ -17,6 +17,7 @@ export const geminiLessonService = {
         You are an expert AI tutor. Create a comprehensive lesson on the topic: "${topic}".
         Context: This lesson is part of the module "${moduleContext}" and chapter "${chapterContext}".
         ${personalizationContext ? `User Personalization Context: ${personalizationContext}` : ""}
+        ${summaryContext ? `Base the detailed lesson content on this initial summary: "${summaryContext}"` : ""}
         
         Return the response as a JSON object with the following structure:
         {
