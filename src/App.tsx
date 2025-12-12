@@ -16,6 +16,8 @@ import ProfileEdit from "./pages/ProfileEdit";
 import Certificates from "./pages/Certificates";
 import AiPersona from "./pages/AiPersona";
 import Flashcards from "./pages/Flashcards";
+import Challenge from "./pages/Challenge";
+import Referral from "./pages/Referral";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +60,8 @@ const App = () => (
             <Route path="/certificates" element={<ProtectedRoute><Certificates /></ProtectedRoute>} />
             <Route path="/profile/ai-persona" element={<ProtectedRoute><AiPersona /></ProtectedRoute>} />
             <Route path="/flashcards" element={<ProtectedRoute><Flashcards /></ProtectedRoute>} />
+            <Route path="/challenge" element={<ProtectedRoute><Challenge /></ProtectedRoute>} />
+            <Route path="/referral" element={<ProtectedRoute><Referral /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
