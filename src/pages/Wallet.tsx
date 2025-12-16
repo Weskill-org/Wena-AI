@@ -257,118 +257,142 @@ export default function Wallet() {
 
   return (
     <>
+      <div className="min-h-screen pb-24 safe-area-top">
+        {/* Header */}
+        <div className="px-4 pt-6 pb-4">
+          <motion.h1
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-2xl font-bold"
+          >
+            Wallet
+          </motion.h1>
+        </div>
 
-      <div className="min-h-screen pb-20 px-4 pt-8">
-        {/* Balance Card */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-gradient-accent rounded-3xl p-6 mb-6 glow-accent"
-        >
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <p className="text-white/80 text-sm mb-1">Total Balance</p>
-              <h1 className="text-5xl font-bold text-white">{wallet?.credits || 0}</h1>
-              <p className="text-white/80 text-sm mt-1">Credits</p>
+        <div className="px-4 space-y-4">
+          {/* Balance Card */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gradient-accent rounded-3xl p-5 glow-accent relative overflow-hidden"
+          >
+            <div className="relative z-10">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className="text-white/70 text-xs mb-1">Total Balance</p>
+                  <h1 className="text-4xl font-bold text-white">{wallet?.credits || 0}</h1>
+                  <p className="text-white/70 text-xs mt-1">Credits</p>
+                </div>
+                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Coins className="w-7 h-7 text-white" />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setRedeemDialogOpen(true)}
+                  className="flex-1 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium text-sm flex items-center justify-center gap-2 active-scale"
+                >
+                  <Gift className="w-4 h-4" />
+                  Redeem
+                </button>
+                <button
+                  onClick={() => setTopUpDialogOpen(true)}
+                  className="flex-1 h-10 rounded-xl bg-white text-accent font-medium text-sm flex items-center justify-center gap-2 active-scale"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Top Up
+                </button>
+              </div>
             </div>
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-              className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center"
-            >
-              <Coins className="w-8 h-8 text-white" />
-            </motion.div>
-          </div>
+            
+            {/* Decorative */}
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+          </motion.div>
 
-          <div className="flex gap-3">
-            <GradientButton variant="primary" className="flex-1 h-12" onClick={() => setRedeemDialogOpen(true)}>
-              <Gift className="w-4 h-4 mr-2" />
-              Redeem Code
-            </GradientButton>
-            <GradientButton variant="secondary" className="flex-1 h-12" onClick={() => setTopUpDialogOpen(true)}>
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Top Up
-            </GradientButton>
-          </div>
-        </motion.div>
-
-        {/* Referral Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gradient-primary rounded-3xl p-5 mb-6 glow-primary"
-        >
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h3 className="text-white font-semibold mb-1">Refer & Earn</h3>
-              <p className="text-white/80 text-sm">Get 50 credits per friend</p>
-              <p className="text-white/60 text-xs mt-1">Total Referrals: {referralCode?.total_referrals || 0}</p>
+          {/* Referral Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-gradient-primary rounded-2xl p-4 glow-primary"
+          >
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <h3 className="text-white font-semibold text-sm">Refer & Earn</h3>
+                <p className="text-white/70 text-xs">Get 50 credits per friend</p>
+              </div>
+              <div className="bg-white/20 px-2 py-1 rounded-lg">
+                <span className="text-white text-xs font-medium">{referralCode?.total_referrals || 0} referrals</span>
+              </div>
             </div>
-          </div>
-          <div className="space-y-2">
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 flex justify-between items-center">
-              <code className="text-white font-mono font-semibold text-sm">
-                {referralCode?.referral_code || "Loading..."}
-              </code>
+            <div className="space-y-2">
+              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 flex justify-between items-center">
+                <code className="text-white font-mono font-semibold text-sm">
+                  {referralCode?.referral_code || "Loading..."}
+                </code>
+                <button
+                  onClick={copyReferralCode}
+                  className="text-white text-xs font-semibold flex items-center gap-1 active-scale"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
               <button
-                onClick={copyReferralCode}
-                className="text-white text-sm font-semibold flex items-center gap-1"
+                onClick={shareReferralLink}
+                className="w-full h-9 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium active-scale"
               >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? "Copied" : "Copy"}
+                Share Referral Link
               </button>
             </div>
-            <Button
-              onClick={shareReferralLink}
-              className="w-full bg-white/20 hover:bg-white/30 text-white border-0"
-            >
-              Share Referral Link
-            </Button>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* Transaction History */}
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
-          {!transactions || transactions.length === 0 ? (
-            <div className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-8 text-center">
-              <p className="text-muted-foreground">No transactions yet</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {transactions.map((tx, index) => (
-                <motion.div
-                  key={tx.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 + index * 0.1 }}
-                  className="bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-4 flex justify-between items-center"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.type === "earned" ? "bg-accent/20" : "bg-destructive/20"
+          {/* Transaction History */}
+          <div>
+            <h2 className="text-base font-semibold mb-3">Recent Transactions</h2>
+            {!transactions || transactions.length === 0 ? (
+              <div className="glass border border-border rounded-2xl p-6 text-center">
+                <span className="text-3xl block mb-2">📭</span>
+                <p className="text-muted-foreground text-sm">No transactions yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {transactions.map((tx, index) => (
+                  <motion.div
+                    key={tx.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.15 + index * 0.03 }}
+                    className="glass border border-border rounded-2xl p-3 flex justify-between items-center"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                        tx.type === "earned" ? "bg-accent/20" : "bg-destructive/20"
                       }`}>
-                      {tx.type === "earned" ? (
-                        <TrendingUp className={`w-5 h-5 text-accent`} />
-                      ) : (
-                        <Coins className={`w-5 h-5 text-destructive`} />
-                      )}
-                    </div>
-                    <div>
-                      <div className="font-semibold">{tx.label}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(tx.created_at), { addSuffix: true })}
+                        {tx.type === "earned" ? (
+                          <TrendingUp className="w-4 h-4 text-accent" />
+                        ) : (
+                          <Coins className="w-4 h-4 text-destructive" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">{tx.label}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {formatDistanceToNow(new Date(tx.created_at), { addSuffix: true })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className={`text-lg font-bold ${tx.type === "earned" ? "text-accent" : "text-destructive"
+                    <div className={`text-base font-bold ${
+                      tx.type === "earned" ? "text-accent" : "text-destructive"
                     }`}>
-                    {tx.amount > 0 ? "+" : ""}{tx.amount}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                      {tx.amount > 0 ? "+" : ""}{tx.amount}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <BottomNav />

@@ -114,42 +114,43 @@ export default function Challenge() {
     }
 
     return (
-        <div className="min-h-screen pb-20 px-4 pt-8 bg-background relative overflow-hidden">
+        <div className="min-h-screen pb-24 safe-area-top bg-background relative overflow-hidden">
             {/* Background Elements */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
-                <div className="absolute top-20 right-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
-                <div className="absolute bottom-20 left-10 w-64 h-64 bg-accent/5 rounded-full blur-3xl opacity-50" />
+                <div className="absolute top-20 right-10 w-48 h-48 bg-primary/5 rounded-full blur-3xl" />
+                <div className="absolute bottom-20 left-10 w-48 h-48 bg-accent/5 rounded-full blur-3xl opacity-50" />
             </div>
 
             {/* Header */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-6"
-            >
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
+            <div className="px-4 pt-6 pb-4 sticky top-0 z-40 bg-gradient-to-b from-background via-background to-transparent">
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center justify-between"
+                >
+                    <div className="flex items-center gap-3">
                         <button
                             onClick={() => navigate('/')}
-                            className="w-10 h-10 rounded-xl bg-surface/50 backdrop-blur-sm border border-border flex items-center justify-center hover:bg-surface transition-smooth"
+                            className="w-10 h-10 rounded-xl glass border border-border flex items-center justify-center active-scale"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </button>
-                        <h1 className="text-2xl font-bold">Daily Challenge</h1>
+                        <h1 className="text-xl font-bold">Daily Challenge</h1>
                     </div>
 
-                    <div className="flex items-center gap-2 bg-surface/50 backdrop-blur-sm border border-border px-3 py-1.5 rounded-full">
-                        <Flame className={`w-5 h-5 ${userStats?.current_streak && userStats.current_streak > 0 ? 'text-orange-500 fill-orange-500' : 'text-muted-foreground'}`} />
-                        <span className="font-bold">{userStats?.current_streak || 0}</span>
+                    <div className="flex items-center gap-1.5 glass border border-border px-3 py-1.5 rounded-full">
+                        <Flame className={`w-4 h-4 ${userStats?.current_streak && userStats.current_streak > 0 ? 'text-orange-500 fill-orange-500' : 'text-muted-foreground'}`} />
+                        <span className="font-bold text-sm">{userStats?.current_streak || 0}</span>
                     </div>
-                </div>
-            </motion.div>
+                </motion.div>
+            </div>
 
-            <Tabs defaultValue="challenge" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-8">
-                    <TabsTrigger value="challenge">Today's Challenge</TabsTrigger>
-                    <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-                </TabsList>
+            <div className="px-4">
+                <Tabs defaultValue="challenge" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-4 h-11">
+                        <TabsTrigger value="challenge" className="text-sm">Today's Challenge</TabsTrigger>
+                        <TabsTrigger value="leaderboard" className="text-sm">Leaderboard</TabsTrigger>
+                    </TabsList>
 
                 <TabsContent value="challenge" className="space-y-4">
                     <AnimatePresence mode="wait">
@@ -325,6 +326,7 @@ export default function Challenge() {
                     </div>
                 </TabsContent>
             </Tabs>
+            </div>
         </div>
     );
 }
