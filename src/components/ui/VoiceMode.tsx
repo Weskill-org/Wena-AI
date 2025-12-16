@@ -160,19 +160,19 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
     };
 
     return (
-        <div className="h-full flex flex-col items-center justify-center relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
+        <div className="h-full flex flex-col items-center justify-center relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black px-4">
 
             {/* Background Ambience */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-900/10 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-900/10 rounded-full blur-3xl"></div>
+                <div className="absolute top-1/4 left-1/4 w-48 md:w-96 h-48 md:h-96 bg-purple-900/10 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-1/4 right-1/4 w-48 md:w-96 h-48 md:h-96 bg-cyan-900/10 rounded-full blur-3xl"></div>
             </div>
 
-            <div className="z-10 flex flex-col items-center space-y-12">
-                <div className="text-center space-y-2">
-                    <h2 className="text-3xl font-light text-white tracking-wide">Wena AI</h2>
-                    <p className="text-slate-400">
-                        {active ? `Speaking with ${selectedRole}...` : 'Select a role and tap the orb to start'}
+            <div className="z-10 flex flex-col items-center space-y-4 md:space-y-8">
+                <div className="text-center space-y-1">
+                    <h2 className="text-2xl md:text-3xl font-light text-white tracking-wide">Wena AI</h2>
+                    <p className="text-slate-400 text-sm md:text-base">
+                        {active ? `Speaking with ${selectedRole}...` : 'Select a role and tap to start'}
                     </p>
                 </div>
 
@@ -182,14 +182,14 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     onClick={handleToggle}
                 />
 
-                {/* Role Chips */}
-                <div className="flex gap-3 flex-wrap justify-center max-w-md">
+                {/* Role Chips - Grid layout for mobile */}
+                <div className="grid grid-cols-3 gap-2 md:flex md:gap-3 md:flex-wrap md:justify-center max-w-sm md:max-w-md">
                     {Object.keys(ROLES).map((role) => (
                         <button
                             key={role}
                             onClick={() => !active && setSelectedRole(role)}
                             disabled={active}
-                            className={`px-4 py-2 rounded-full border text-sm transition-all duration-300
+                            className={`px-2 py-1.5 md:px-4 md:py-2 rounded-full border text-xs md:text-sm transition-all duration-300
                         ${selectedRole === role
                                     ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.2)] scale-105'
                                     : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700 hover:border-cyan-500/50'
@@ -197,25 +197,29 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                         ${active ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                     `}
                         >
-                            {role}
+                            {role === 'Mock Interviewer' ? 'Interview' : 
+                             role === 'Career Counselor' ? 'Career' :
+                             role === 'Coding Buddy' ? 'Coding' :
+                             role === 'Language Buddy' ? 'Language' :
+                             role === 'Exam Buddy' ? 'Exam' : role}
                         </button>
                     ))}
                 </div>
 
                 {error && (
-                    <div className="absolute bottom-10 bg-red-500/10 border border-red-500/50 text-red-200 px-6 py-3 rounded-lg flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-2">
-                        <X size={16} />
+                    <div className="absolute bottom-4 left-4 right-4 md:bottom-10 md:left-auto md:right-auto bg-red-500/10 border border-red-500/50 text-red-200 px-4 py-2 md:px-6 md:py-3 rounded-lg flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-2 text-sm">
+                        <X size={14} />
                         <span>{error}</span>
                     </div>
                 )}
 
                 {active && (
-                    <div className="absolute top-10 right-10 bg-black/40 backdrop-blur-md p-4 rounded-xl border border-white/10 max-w-xs hidden md:block animate-in fade-in zoom-in-95 duration-300">
+                    <div className="absolute top-4 right-4 md:top-10 md:right-10 bg-black/40 backdrop-blur-md p-3 md:p-4 rounded-xl border border-white/10 max-w-[200px] md:max-w-xs hidden md:block animate-in fade-in zoom-in-95 duration-300">
                         <div className="flex items-center space-x-2 text-cyan-400 mb-2">
-                            <Sparkles size={16} />
+                            <Sparkles size={14} />
                             <span className="text-xs font-bold uppercase">Live Transcript</span>
                         </div>
-                        <div className="h-32 overflow-y-auto text-xs text-slate-300 space-y-1 scrollbar-hide">
+                        <div className="h-24 md:h-32 overflow-y-auto text-xs text-slate-300 space-y-1 scrollbar-hide">
                             {transcript.slice(-5).map((t, i) => (
                                 <p key={i} className="opacity-80">{t}</p>
                             ))}
