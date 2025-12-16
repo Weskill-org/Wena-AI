@@ -107,40 +107,32 @@ export const personaService = {
     },
 
     async updatePersonaWithAI(userId: string, newInfo: { question: string, answer: string }) {
-        console.log("Updating persona with AI...");
+        console.log("Updating persona text...");
         const currentPersona = await this.getPersona(userId);
         const currentText = currentPersona?.persona_text || "";
 
-        const prompt = `
-            Update the following User Persona based on this new information:
-            Question: "${newInfo.question}"
-            Answer: "${newInfo.answer}"
+        // Construct the new entry
+        const newEntry = `${newInfo.question}: ${newInfo.answer}`;
 
-            Current Persona:
-            ${currentText}
-
-            IMPORTANT: The output MUST strictly follow this format:
-            Name: [Name]
-            Date of Birth: [DOB]
-            Subject of Interest: [Subjects]
-            School Name: [School]
-            [Add other relevant fields as needed based on the new info, e.g., Goals, Learning Style, etc.]
-
-            Keep it concise and structured.
-        `;
+        // Append to existing text
+        let updatedText = currentText.trim();
+        if (updatedText) {
+            updatedText += "\n\n" + newEntry;
+        } else {
+            updatedText = newEntry;
+        }
 
         try {
-            const newPersonaText = await sendMessageToGemini(prompt);
-
             // @ts-ignore
-            await supabase
+            const { error } = await supabase
                 .from('ai_personas')
-                .update({ persona_text: newPersonaText })
+                .update({ persona_text: updatedText })
                 .eq('user_id', userId);
 
-            console.log("Persona updated with AI.");
+            if (error) throw error;
+            console.log("Persona text updated successfully (Direct Append).");
         } catch (error) {
-            console.error("Error updating persona with AI:", error);
+            console.error("Error updating persona text:", error);
         }
     },
 
@@ -224,21 +216,16 @@ export const personaService = {
         await this.updatePersona(userId, { [fieldKey]: response });
 
         // 3. Update AI Persona Text
-        // Fetch question text for context
-        // @ts-ignore
-        const { data: question } = await supabase
-            .from('flashcard_questions')
-            .select('question_text')
-            .eq('id', questionId)
-            .single();
+        // Use formatted field_key as the key/label instead of full question text
+        const formattedKey = fieldKey
+            .split('_')
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ');
 
-        if (question) {
-            await this.updatePersonaWithAI(userId, {
-                // @ts-ignore
-                question: question.question_text,
-                answer: response
-            });
-        }
+        await this.updatePersonaWithAI(userId, {
+            question: formattedKey,
+            answer: response
+        });
     },
 
     async getTodayProgress(userId: string) {

@@ -6,27 +6,79 @@ import { Sparkles, X } from 'lucide-react';
 interface VoiceModeProps {
     onDeductCredit: () => void;
     hasCredits: boolean;
+    personaContext?: string;
 }
 
 const ROLES: Record<string, string> = {
-    'Exam Coach': 'You are an intensive Exam Coach. Your goal is to prepare the student for upcoming tests. Ask rapid-fire questions, focus on key facts, and provide immediate feedback. Be strict but encouraging. Keep responses short.',
-    'Math Tutor': 'You are a patient Math Tutor. Explain concepts step-by-step. If the student is stuck, provide hints rather than the answer. Use analogies to explain complex topics.',
-    'Language Buddy': 'You are a friendly Language Buddy. Converse primarily in English (unless asked otherwise). Ask user which language they want to learn and what is their mother tongue. You need to train mostly from mother tongue to the language they want to learn. Correct grammar mistakes gently and teach new vocabulary in context.'
+    'Mock Interviewer': `You are Wena, a professional Mock Interviewer. Your name is "Wena". If asked about your model, reply: "Wena 2.0 AI, Made in India". 
+    Module Logic:
+    1. Start by strictly asking the user for their "Years of Experience" and "Role they are applying for". Do not proceed until you have this.
+    2. Once received, conduct a detailed technical interview. Ask 10 questions one by one. Wait for the user's answer after each question.
+    3. If the user gives a wrong answer, politely correct them with the right answer and explanation, then move to the next question directly without asking anything.
+    4. Maintain a professional yet encouraging tone.
+    5. At the very end of the interview (after 10 questions), provide a detailed SWOT analysis (Strengths, Weaknesses, Opportunities, Threats) based on their performance.
+    6. Never get distracted by the user's unnecessary details. Stick to the role and push user to answer questions.`,
+
+    'Career Counselor': `You are Wena, an expert Career Counselor. Your name is "Wena". If asked about your model, reply: "Wena 2.0 AI, Made in India".
+    Module Logic:
+    1. Ask the user about their current skills, interests, and career goals.
+    2. Provide personalized career guidance, suggesting roles, industries, and upskilling paths.
+    3. Discuss market trends relevant to their field.
+    4. Be supportive, insightful, and practical in your advice.
+    5. Never get distracted by the user's unnecessary details. Stick to the role and push user to answer questions.`,
+
+    'Coding Buddy': `You are Wena, a friendly Coding Buddy. Your name is "Wena". If asked about your model, reply: "Wena 2.0 AI, Made in India".
+    Module Logic:
+    1. Ask the user which coding language they want to learn or understand.
+    2. Ask for their current proficiency level (Beginner, Intermediate, Advanced).
+    3. If they are a beginner, guide them through basics with examples.
+    4. If they already know the basics, skip to higher-level concepts and allow them to set a custom difficulty for challenges/questions.
+    5. Review their code snippets if provided and suggest optimizations.`,
+
+    'Language Buddy': `You are Wena, a dedicated Language Buddy. Your name is "Wena". If asked about your model, reply: "Wena 2.0 AI, Made in India".
+    Module Logic:
+    1. Ask the user which new language they want to learn.
+    2. Ask what their native/mother tongue is.
+    3. Start talking in their mother tongue and Teach the target language primarily by using examples and translations from their mother tongue only.
+    4. Correct grammar and pronunciation (phonetically) in a gentle manner.
+    5. Focus on conversational fluency and vocabulary building.
+    6. Never get distracted by the user's unnecessary details. Stick to the role and move ahead in teaching the target language.
+    7. Lead the convesation as a proffesional Language Tutor`,
+
+    'Exam Buddy': `You are Wena, an intensive Exam Buddy. Your name is "Wena". If asked about your model, reply: "Wena 2.0 AI, Made in India".
+    Module Logic:
+    1. Ask the user which exam they are preparing for (e.g., SAT, JEE, UPSC, University exams).
+    2. Conduct rapid-fire question sessions testing key facts and concepts.
+    3. Be strict about accuracy but encouraging about effort.
+    4. Focus on high-yield topics and memory retention techniques.
+    5. Keep interactions fast-paced to simulate exam pressure.`,
+
+    'WeCare': `You are "WeCare", a soft and calming mental and physiological therapist identity of Wena. Your name is "WeCare". If asked about your model, reply: "Wena 2.0 AI, Made in India".
+    Module Logic:
+    1. Use a very soft, soothing, and empathetic tone.
+    2. Listen actively to the user's worries or stresses.
+    3. Provide comforting words, mindfulness exercises, or breathing techniques if needed.
+    4. Goal is to reduce anxiety and make the user feel heard and supported.
+    5. strictly avoid medical diagnoses; focus on emotional support and well-being.`
 };
 
-const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits }) => {
+const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, personaContext }) => {
     const [active, setActive] = useState(false);
-    const [selectedRole, setSelectedRole] = useState<string>('Exam Coach');
+    const [selectedRole, setSelectedRole] = useState<string>('Mock Interviewer');
     const [volume, setVolume] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [transcript, setTranscript] = useState<string[]>([]);
     const liveClient = useRef<GeminiLiveClient | null>(null);
+    const billingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
         // Cleanup on unmount
         return () => {
             if (liveClient.current) {
                 liveClient.current.disconnect();
+            }
+            if (billingInterval.current) {
+                clearInterval(billingInterval.current);
             }
         };
     }, []);
@@ -52,15 +104,27 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits }) => 
                 return;
             }
 
+            // Construct system instruction with user persona context
+            const roleInstruction = ROLES[selectedRole];
+            const fullSystemInstruction = personaContext
+                ? `${roleInstruction}\n\nIMPORTANT USER CONTEXT (Use this to personalize the interaction):\n${personaContext}`
+                : roleInstruction;
+
             liveClient.current = new GeminiLiveClient({
                 apiKey,
-                systemInstruction: ROLES[selectedRole],
+                systemInstruction: fullSystemInstruction,
                 onConnect: () => {
                     setActive(true);
                     setTranscript(prev => [...prev, `System: Connected as ${selectedRole}`]);
+
+                    // Deduct credit immediately on start, then every minute
+                    onDeductCredit();
+                    billingInterval.current = setInterval(() => {
+                        onDeductCredit();
+                    }, 60000);
                 },
                 onResponse: () => {
-                    onDeductCredit();
+                    // Previously deducted here, now handled by interval
                 },
                 onDisconnect: () => {
                     setActive(false);
@@ -68,6 +132,11 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits }) => 
                     setTranscript(prev => [...prev, "System: Disconnected."]);
                     // Reset client so we can re-init with new role if needed next time
                     liveClient.current = null;
+
+                    if (billingInterval.current) {
+                        clearInterval(billingInterval.current);
+                        billingInterval.current = null;
+                    }
                 },
                 onVolumeChange: (vol) => {
                     setVolume(vol);
@@ -78,6 +147,11 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits }) => 
                     console.error(err);
                     setActive(false);
                     liveClient.current = null;
+
+                    if (billingInterval.current) {
+                        clearInterval(billingInterval.current);
+                        billingInterval.current = null;
+                    }
                 }
             });
         }
@@ -96,7 +170,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits }) => 
 
             <div className="z-10 flex flex-col items-center space-y-12">
                 <div className="text-center space-y-2">
-                    <h2 className="text-3xl font-light text-white tracking-wide">AI Learning Companion</h2>
+                    <h2 className="text-3xl font-light text-white tracking-wide">Wena AI</h2>
                     <p className="text-slate-400">
                         {active ? `Speaking with ${selectedRole}...` : 'Select a role and tap the orb to start'}
                     </p>

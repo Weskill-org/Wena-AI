@@ -27,6 +27,23 @@ export default function AiChat() {
 
   const credits = wallet?.credits || 0;
 
+  // Fetch user's persona
+  const { data: persona } = useQuery({
+    queryKey: ['persona', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ai_personas')
+        .select('persona_text')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const personaText = persona?.persona_text || "";
+
   // Mutation to deduct purchase usage
   const deductUsageMutation = useMutation({
     mutationFn: async () => {
@@ -56,6 +73,7 @@ export default function AiChat() {
         <VoiceMode
           onDeductCredit={handleDeductCredit}
           hasCredits={credits > 0}
+          personaContext={personaText}
         />
 
         {/* Credit Display (Optional Overlay) */}
