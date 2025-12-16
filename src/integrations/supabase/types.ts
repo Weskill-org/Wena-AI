@@ -139,6 +139,60 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_challenges: {
+        Row: {
+          challenge_date: string
+          correct_answer: string
+          created_at: string
+          difficulty: string
+          id: string
+          options: Json | null
+          question: string
+          topic: string
+        }
+        Insert: {
+          challenge_date?: string
+          correct_answer: string
+          created_at?: string
+          difficulty?: string
+          id?: string
+          options?: Json | null
+          question: string
+          topic?: string
+        }
+        Update: {
+          challenge_date?: string
+          correct_answer?: string
+          created_at?: string
+          difficulty?: string
+          id?: string
+          options?: Json | null
+          question?: string
+          topic?: string
+        }
+        Relationships: []
+      }
+      debug_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string | null
+          payload: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          payload?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          payload?: Json | null
+        }
+        Relationships: []
+      }
       discount_codes: {
         Row: {
           code: string
@@ -376,6 +430,7 @@ export type Database = {
           created_at: string
           id: string
           referral_code: string
+          referred_by: string | null
           total_referrals: number
           user_id: string
         }
@@ -383,6 +438,7 @@ export type Database = {
           created_at?: string
           id?: string
           referral_code: string
+          referred_by?: string | null
           total_referrals?: number
           user_id: string
         }
@@ -390,10 +446,53 @@ export type Database = {
           created_at?: string
           id?: string
           referral_code?: string
+          referred_by?: string | null
           total_referrals?: number
           user_id?: string
         }
         Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          credits_earned: number
+          id: string
+          referee_id: string
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          credits_earned?: number
+          id?: string
+          referee_id: string
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          credits_earned?: number
+          id?: string
+          referee_id?: string
+          referrer_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referee_id_fkey"
+            columns: ["referee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {
@@ -421,6 +520,51 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_challenge_attempts: {
+        Row: {
+          attempted_at: string
+          challenge_id: string
+          id: string
+          is_correct: boolean
+          points_earned: number
+          response: string
+          user_id: string
+        }
+        Insert: {
+          attempted_at?: string
+          challenge_id: string
+          id?: string
+          is_correct: boolean
+          points_earned?: number
+          response: string
+          user_id: string
+        }
+        Update: {
+          attempted_at?: string
+          challenge_id?: string
+          id?: string
+          is_correct?: boolean
+          points_earned?: number
+          response?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_challenge_attempts_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "daily_challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_challenge_attempts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_lesson_progress: {
         Row: {
@@ -519,6 +663,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_stats: {
+        Row: {
+          current_streak: number
+          last_challenge_date: string | null
+          longest_streak: number
+          tier: string
+          total_xp: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_streak?: number
+          last_challenge_date?: string | null
+          longest_streak?: number
+          tier?: string
+          total_xp?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_streak?: number
+          last_challenge_date?: string | null
+          longest_streak?: number
+          tier?: string
+          total_xp?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_stats_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallets: {
         Row: {
           created_at: string
@@ -548,6 +730,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      deduct_ai_credits: { Args: { amount?: number }; Returns: undefined }
       generate_referral_code: {
         Args: { user_id_param: string }
         Returns: string

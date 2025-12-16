@@ -5,6 +5,7 @@ export interface DailyChallenge {
     id: string;
     question: string;
     options: string[] | null;
+    correct_answer?: string;
     difficulty: string;
     topic: string;
     challenge_date: string;
@@ -281,11 +282,11 @@ export const challengeService = {
             // Create if missing
             try {
                 await supabase.from('user_stats').insert({ user_id: userId });
-                return { total_xp: 0, current_streak: 0, longest_streak: 0, tier: 'Bronze' };
+                return { total_xp: 0, current_streak: 0, longest_streak: 0, tier: 'Bronze', last_challenge_date: null } as UserStats;
             } catch (e) {
-                return null;
+                return { total_xp: 0, current_streak: 0, longest_streak: 0, tier: 'Bronze', last_challenge_date: null } as UserStats;
             }
         }
-        return data;
+        return data as UserStats;
     }
 };
