@@ -197,11 +197,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                         ${active ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                     `}
                         >
-                            {role === 'Mock Interviewer' ? 'Interview' : 
-                             role === 'Career Counselor' ? 'Career' :
-                             role === 'Coding Buddy' ? 'Coding' :
-                             role === 'Language Buddy' ? 'Language' :
-                             role === 'Exam Buddy' ? 'Exam' : role}
+                            {role}
                         </button>
                     ))}
                 </div>
