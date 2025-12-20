@@ -402,6 +402,7 @@ export type Database = {
           date_of_birth: string | null
           full_name: string
           id: string
+          individual_gemini_key: string | null
           phone_number: string | null
           updated_at: string
         }
@@ -411,6 +412,7 @@ export type Database = {
           date_of_birth?: string | null
           full_name: string
           id: string
+          individual_gemini_key?: string | null
           phone_number?: string | null
           updated_at?: string
         }
@@ -420,6 +422,7 @@ export type Database = {
           date_of_birth?: string | null
           full_name?: string
           id?: string
+          individual_gemini_key?: string | null
           phone_number?: string | null
           updated_at?: string
         }

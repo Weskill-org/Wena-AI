@@ -4,18 +4,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Mic, Loader2 } from "lucide-react";
 import CurriculumVoiceSession from "@/components/modules/CurriculumVoiceSession";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from 'react-router-dom';
 
 interface CurriculumDriverProps {
     isOpen: boolean;
     onClose: () => void;
     onComplete: () => void;
     moduleTitle: string;
-    moduleId: string; // Added moduleId to navigate/save context
+    moduleId: string;
 }
 
 export default function CurriculumDriver({ isOpen, onClose, onComplete, moduleTitle, moduleId }: CurriculumDriverProps) {
-    const navigate = useNavigate();
     const [step, setStep] = useState<'intro' | 'voice' | 'generating'>('intro');
     const [persona, setPersona] = useState<string>("Learner");
     const [transcript, setTranscript] = useState<string[]>([]);
@@ -35,7 +33,6 @@ export default function CurriculumDriver({ isOpen, onClose, onComplete, moduleTi
                 .from('ai_personas')
                 .select('persona_text')
                 .eq('user_id', user.id)
-                // .eq('is_active', true) // is_active might not exist either based on migration, checking...
                 .limit(1)
                 .single();
 
@@ -54,19 +51,9 @@ export default function CurriculumDriver({ isOpen, onClose, onComplete, moduleTi
     const handleVoiceComplete = () => {
         setStep('generating');
 
-        // Save transcript/context to local storage or state to pass to LessonView
-        // For simplicity, we'll use navigation state when we complete
         const contextSummary = transcript.join("\n");
 
         setTimeout(() => {
-            onComplete(); // Close dialog
-            // Navigate to first lesson with context
-            // We need to find the first lesson ID. 
-            // Since we don't have it here easily without fetching, 
-            // we rely on the parent (ModuleView) to handle the "after complete" action 
-            // OR we pass the context back to parent.
-            // Let's pass it back via onComplete if we change the signature, 
-            // or just save to sessionStorage for the next lesson load.
             sessionStorage.setItem(`curriculum_context_${moduleId}`, contextSummary);
             console.log("Personalization complete, closing driver...");
             onComplete();
