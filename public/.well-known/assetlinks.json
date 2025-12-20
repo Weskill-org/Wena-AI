@@ -1,0 +1,14 @@
+[
+    {
+        "relation": [
+            "delegate_permission/common.handle_all_urls"
+        ],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "org.weskill.app",
+            "sha256_cert_fingerprints": [
+                "F9:42:FE:CD:DE:5B:3C:0A:D2:75:AC:84:58:B5:82:31:F7:25:D4:1B:4D:BB:51:B3:A2:29:2B:8A:D2:63:62:40"
+            ]
+        }
+    }
+]
