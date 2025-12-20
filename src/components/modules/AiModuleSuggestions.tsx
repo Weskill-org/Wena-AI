@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { Sparkles, BookOpen, Clock, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -111,11 +110,8 @@ export default function AiModuleSuggestions({ onModuleCreated }: { onModuleCreat
 
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
                 {suggestions.map((module, index) => (
-                    <motion.div
+                    <div
                         key={index}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
                         className="min-w-[300px] max-w-[300px] bg-surface/50 backdrop-blur-lg border border-border rounded-2xl p-5 flex flex-col snap-start hover:border-primary/50 transition-colors"
                     >
                         <h3 className="font-bold text-lg mb-2 line-clamp-1" title={module.title}>{module.title}</h3>
@@ -146,7 +142,7 @@ export default function AiModuleSuggestions({ onModuleCreated }: { onModuleCreat
                                 </>
                             )}
                         </Button>
-                    </motion.div>
+                    </div>
                 ))}
             </div>
         </div>

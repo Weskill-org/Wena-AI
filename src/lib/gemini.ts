@@ -1,15 +1,30 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { supabase } from "@/integrations/supabase/client";
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+let cachedApiKey: string | null = null;
 
-if (!API_KEY) {
-  console.warn("VITE_GEMINI_API_KEY is not set in .env");
-}
+export const getGeminiApiKey = async (): Promise<string> => {
+  if (cachedApiKey) return cachedApiKey;
 
-const genAI = new GoogleGenerativeAI(API_KEY || "");
+  const { data, error } = await supabase.functions.invoke('get-gemini-key');
+  
+  if (error || !data?.apiKey) {
+    console.error("Failed to get Gemini API key:", error);
+    throw new Error("Failed to get Gemini API key");
+  }
+
+  cachedApiKey = data.apiKey;
+  return data.apiKey;
+};
+
+export const clearGeminiKeyCache = () => {
+  cachedApiKey = null;
+};
 
 export const sendMessageToGemini = async (message: string) => {
   try {
+    const apiKey = await getGeminiApiKey();
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-native-audio-preview-09-2025" });
     const result = await model.generateContent(message);
     const response = await result.response;

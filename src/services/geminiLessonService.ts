@@ -1,16 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
-if (!API_KEY) {
-  console.warn("VITE_GEMINI_API_KEY is not set in .env");
-}
-
-const genAI = new GoogleGenerativeAI(API_KEY || "");
+import { getGeminiApiKey } from "@/lib/gemini";
 
 export const geminiLessonService = {
   async generateLessonContent(topic: string, moduleContext: string, chapterContext: string, personalizationContext?: string, summaryContext?: string) {
     try {
+      const apiKey = await getGeminiApiKey();
+      const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
       const prompt = `
@@ -56,6 +51,8 @@ export const geminiLessonService = {
 
   async generateModuleSuggestions(persona: string) {
     try {
+      const apiKey = await getGeminiApiKey();
+      const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const prompt = `
         Based on the following user persona, suggest 10 unique and engaging learning modules.
@@ -86,6 +83,8 @@ export const geminiLessonService = {
 
   async generateCurriculum(moduleTitle: string, persona: string) {
     try {
+      const apiKey = await getGeminiApiKey();
+      const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const prompt = `
         Create a comprehensive curriculum for a learning module titled "${moduleTitle}".
@@ -122,7 +121,6 @@ export const geminiLessonService = {
 
       if (!parsed.chapters || !Array.isArray(parsed.chapters)) {
         console.error("Invalid curriculum structure:", parsed);
-        // Fallback structure
         return { chapters: [] };
       }
 
