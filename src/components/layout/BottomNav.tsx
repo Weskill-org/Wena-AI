@@ -1,6 +1,5 @@
 import { Home, BookOpen, Wallet, User, Bot } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -28,17 +27,10 @@ export const BottomNav = () => {
                 activeClassName="text-primary"
               >
                 {({ isActive }) => (
-                  <motion.div
-                    className="relative flex flex-col items-center gap-0.5"
-                    whileTap={{ scale: 0.9 }}
-                  >
+                  <div className="relative flex flex-col items-center gap-0.5">
                     {/* Active indicator background */}
                     {isActive && (
-                      <motion.div
-                        layoutId="navBg"
-                        className="absolute -inset-x-3 -inset-y-1 bg-primary/10 rounded-2xl"
-                        transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
-                      />
+                      <div className="absolute -inset-x-3 -inset-y-1 bg-primary/10 rounded-2xl" />
                     )}
                     
                     <div className="relative">
@@ -51,12 +43,7 @@ export const BottomNav = () => {
                       />
                       {/* Glow effect for active */}
                       {isActive && (
-                        <motion.div
-                          className="absolute inset-0 bg-primary/30 blur-lg rounded-full"
-                          initial={{ opacity: 0, scale: 0.5 }}
-                          animate={{ opacity: 1, scale: 1.5 }}
-                          transition={{ duration: 0.3 }}
-                        />
+                        <div className="absolute inset-0 bg-primary/30 blur-lg rounded-full scale-150" />
                       )}
                     </div>
                     
@@ -69,13 +56,9 @@ export const BottomNav = () => {
                     
                     {/* Active dot indicator */}
                     {isActive && (
-                      <motion.div
-                        layoutId="activeDot"
-                        className="absolute -bottom-1.5 w-1 h-1 rounded-full bg-primary"
-                        transition={{ type: "spring", bounce: 0.3 }}
-                      />
+                      <div className="absolute -bottom-1.5 w-1 h-1 rounded-full bg-primary" />
                     )}
-                  </motion.div>
+                  </div>
                 )}
               </NavLink>
             ))}

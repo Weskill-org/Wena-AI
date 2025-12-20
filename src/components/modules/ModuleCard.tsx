@@ -1,9 +1,8 @@
 import { ModuleWithProgress } from "@/types/module";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Lock, Unlock, CheckCircle, ChevronRight } from "lucide-react";
+import { Lock, Unlock, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface ModuleCardProps {
@@ -24,12 +23,11 @@ export function ModuleCard({ module, onUnlock, isUnlocking }: ModuleCardProps) {
   };
 
   return (
-    <motion.div
-      whileTap={{ scale: isUnlocked ? 0.98 : 1 }}
+    <div
       onClick={handleClick}
       className={cn(
         "glass border border-border rounded-2xl p-4 transition-all active-scale",
-        isUnlocked ? "cursor-pointer" : "cursor-default",
+        isUnlocked ? "cursor-pointer active:scale-[0.98]" : "cursor-default",
         !isUnlocked && "opacity-90"
       )}
     >
@@ -72,7 +70,7 @@ export function ModuleCard({ module, onUnlock, isUnlocking }: ModuleCardProps) {
             {isUnlocked ? (
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <Progress value={progress} className="h-1.5" />
+                  <Progress value={progress} />
                 </div>
                 <span className="text-xs text-muted-foreground font-medium">
                   {progress}%
@@ -89,11 +87,7 @@ export function ModuleCard({ module, onUnlock, isUnlocking }: ModuleCardProps) {
                 className="w-full h-9 text-xs font-semibold bg-gradient-primary hover:opacity-90 border-0"
               >
                 {isUnlocking ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
-                  />
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
                     <Lock className="w-3.5 h-3.5 mr-1.5" />
@@ -105,6 +99,6 @@ export function ModuleCard({ module, onUnlock, isUnlocking }: ModuleCardProps) {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
