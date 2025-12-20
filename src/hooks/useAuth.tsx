@@ -11,6 +11,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, metadata: SignUpMetadata) => Promise<{ data: any; error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithMagicLink: (email: string) => Promise<{ error: any }>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -114,6 +115,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const resetPassword = async (email: string) => {
+    const redirectUrl = `${window.location.origin}/login`;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
+
+    if (!error) {
+      toast({
+        title: "Reset link sent! 📧",
+        description: "Check your email for the password reset link.",
+      });
+    }
+
+    return { error };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate('/login');
@@ -124,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithMagicLink, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithMagicLink, resetPassword, signOut }}>
       {children}
     </AuthContext.Provider>
   );

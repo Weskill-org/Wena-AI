@@ -10,8 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { personaService } from "@/services/personaService";
 
 export default function Login() {
-  const { signUp, signIn, signInWithMagicLink, user } = useAuth();
+  const { signUp, signIn, signInWithMagicLink, resetPassword, user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
 
   // Sign Up form
   const [signUpData, setSignUpData] = useState({
@@ -147,6 +149,34 @@ export default function Login() {
     setLoading(false);
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!resetEmail) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await resetPassword(resetEmail);
+
+    if (error) {
+      toast({
+        title: "Failed to send reset link",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setShowResetPassword(false);
+      setResetEmail("");
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Animated Background */}
@@ -271,11 +301,79 @@ export default function Login() {
                     glow
                     type="submit"
                     disabled={loading}
-                    className="w-full mt-6"
+                    className="w-full mt-4"
                   >
                     {loading ? "Signing in..." : "Sign In 🚀"}
                   </GradientButton>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPassword(true)}
+                    className="w-full text-center text-sm text-primary hover:text-primary/80 transition-colors mt-3"
+                  >
+                    Forgot your password?
+                  </button>
                 </motion.form>
+              </AnimatePresence>
+              
+              {/* Reset Password Modal */}
+              <AnimatePresence>
+                {showResetPassword && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    onClick={() => setShowResetPassword(false)}
+                  >
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                      className="bg-surface border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <h3 className="text-xl font-semibold text-foreground mb-2">Reset Password</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Enter your email and we'll send you a link to reset your password.
+                      </p>
+                      <form onSubmit={handleResetPassword} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="reset-email" className="text-foreground flex items-center gap-2">
+                            <Mail className="w-4 h-4" />
+                            Email
+                          </Label>
+                          <Input
+                            id="reset-email"
+                            type="email"
+                            placeholder="your@email.com"
+                            value={resetEmail}
+                            onChange={(e) => setResetEmail(e.target.value)}
+                            className="bg-input border-border rounded-xl h-12"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setShowResetPassword(false)}
+                            className="flex-1 h-11 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <GradientButton
+                            variant="primary"
+                            type="submit"
+                            disabled={loading}
+                            className="flex-1"
+                          >
+                            {loading ? "Sending..." : "Send Link"}
+                          </GradientButton>
+                        </div>
+                      </form>
+                    </motion.div>
+                  </motion.div>
+                )}
               </AnimatePresence>
             </TabsContent>
 
