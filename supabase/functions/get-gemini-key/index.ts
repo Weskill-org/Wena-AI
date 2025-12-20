@@ -13,15 +13,37 @@ serve(async (req) => {
   }
 
   try {
-    const { message, model: modelName, mode } = await req.json();
+    const { message, model: modelName, mode, debug_user_id } = await req.json();
 
     // Default to global key
     let apiKey = Deno.env.get('VITE_GEMINI_API_KEY');
 
-    // Attempt to fetch user-specific key from profiles
+    // Attempt to fetch user-specific key
     try {
+      // DEBUG: Allow testing specific users (Using Service Role to bypass RLS/Auth)
+      if (typeof debug_user_id === 'string') {
+        console.log('Debug mode: Fetching key for specific user:', debug_user_id);
+        const adminClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+          { auth: { persistSession: false } }
+        );
+
+        const { data: profile } = await adminClient
+          .from('profiles')
+          .select('individual_gemini_key')
+          .eq('id', debug_user_id)
+          .single();
+
+        if (profile?.individual_gemini_key) {
+          console.log('Using individual API key for debug user:', debug_user_id);
+          apiKey = profile.individual_gemini_key;
+        }
+      }
+
+      // Standard Auth Flow
       const authHeader = req.headers.get('Authorization');
-      if (authHeader) {
+      if (authHeader && !apiKey) { // Only check if we haven't found a key yet
         const supabaseClient = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_ANON_KEY') ?? '',

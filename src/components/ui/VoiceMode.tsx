@@ -65,6 +65,7 @@ const ROLES: Record<string, string> = {
 
 const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, personaContext }) => {
     const [active, setActive] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [selectedRole, setSelectedRole] = useState<string>('Mock Interviewer');
     const [volume, setVolume] = useState(0);
     const [error, setError] = useState<string | null>(null);
@@ -85,6 +86,8 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
     }, []);
 
     const handleToggle = async () => {
+        if (isLoading) return;
+
         if (active) {
             liveClient.current?.disconnect();
             setActive(false);
@@ -95,6 +98,9 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
             setError("Insufficient credits. Please top up to use Voice Mode.");
             return;
         }
+
+        setIsLoading(true);
+        setError(null);
 
 
         // Initialize Client
@@ -108,6 +114,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                 if (keyError || !data?.apiKey) {
                     console.error("Failed to fetch API key:", keyError);
                     setError("Failed to retrieve API configurations.");
+                    setIsLoading(false);
                     return;
                 }
 
@@ -124,6 +131,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     systemInstruction: fullSystemInstruction,
                     onConnect: () => {
                         setActive(true);
+                        setIsLoading(false);
                         setTranscript(prev => [...prev, `System: Connected as ${selectedRole}`]);
 
                         // Deduct credit immediately on start, then every minute
@@ -137,6 +145,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     },
                     onDisconnect: () => {
                         setActive(false);
+                        setIsLoading(false);
                         setVolume(0);
                         setTranscript(prev => [...prev, "System: Disconnected."]);
                         // Reset client so we can re-init with new role if needed next time
@@ -155,6 +164,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                         setError(`Connection failed: ${errorMessage}`);
                         console.error(err);
                         setActive(false);
+                        setIsLoading(false);
                         liveClient.current = null;
 
                         if (billingInterval.current) {
@@ -166,11 +176,18 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
             } catch (err) {
                 console.error("Error initializing voice mode:", err);
                 setError("Failed to initialize voice service.");
+                setIsLoading(false);
                 return;
             }
         }
 
-        await liveClient.current.connect();
+        try {
+            await liveClient.current.connect();
+        } catch (err) {
+            console.error("Connection error:", err);
+            setError("Failed to connect.");
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -186,7 +203,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                 <div className="text-center space-y-1">
                     <h2 className="text-2xl md:text-3xl font-light text-white tracking-wide">Wena AI</h2>
                     <p className="text-slate-400 text-sm md:text-base">
-                        {active ? `Speaking with ${selectedRole}...` : 'Select a role and tap to start'}
+                        {isLoading ? 'Connecting...' : (active ? `Speaking with ${selectedRole}...` : 'Select a role and tap to start')}
                     </p>
                 </div>
 
@@ -194,6 +211,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     isActive={active}
                     volume={volume}
                     onClick={handleToggle}
+                    isLoading={isLoading}
                 />
 
                 {/* Role Chips - Grid layout for mobile */}
