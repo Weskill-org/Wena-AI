@@ -1,12 +1,9 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getGeminiApiKey } from "@/lib/gemini";
+import { sendMessageToGemini } from "@/lib/gemini";
 
 export const geminiLessonService = {
   async generateLessonContent(topic: string, moduleContext: string, chapterContext: string, personalizationContext?: string, summaryContext?: string) {
     try {
-      const apiKey = await getGeminiApiKey();
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
 
       const prompt = `
         You are an expert AI tutor. Create a comprehensive lesson on the topic: "${topic}".
@@ -39,9 +36,8 @@ export const geminiLessonService = {
         Do not include markdown formatting like \`\`\`json. Just return the raw JSON string.
       `;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+      const textRaw = await sendMessageToGemini(prompt, "gemini-2.5-flash");
+      const text = textRaw.replace(/```json/g, '').replace(/```/g, '').trim();
       return JSON.parse(text);
     } catch (error) {
       console.error("Error generating lesson content:", error);
@@ -51,9 +47,7 @@ export const geminiLessonService = {
 
   async generateModuleSuggestions(persona: string) {
     try {
-      const apiKey = await getGeminiApiKey();
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
       const prompt = `
         Based on the following user persona, suggest 10 unique and engaging learning modules.
         Persona: "${persona}"
@@ -71,9 +65,8 @@ export const geminiLessonService = {
         Do not include markdown formatting like \`\`\`json. Just return the raw JSON string.
       `;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+      const textRaw = await sendMessageToGemini(prompt, "gemini-2.5-flash");
+      const text = textRaw.replace(/```json/g, '').replace(/```/g, '').trim();
       return JSON.parse(text);
     } catch (error) {
       console.error("Error generating module suggestions:", error);
@@ -83,9 +76,7 @@ export const geminiLessonService = {
 
   async generateCurriculum(moduleTitle: string, persona: string) {
     try {
-      const apiKey = await getGeminiApiKey();
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
       const prompt = `
         Create a comprehensive curriculum for a learning module titled "${moduleTitle}".
         Target Audience Persona: "${persona}"
@@ -112,9 +103,8 @@ export const geminiLessonService = {
         Do not include markdown formatting like \`\`\`json. Just return the raw JSON string.
       `;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+      const textRaw = await sendMessageToGemini(prompt, "gemini-2.5-flash");
+      const text = textRaw.replace(/```json/g, '').replace(/```/g, '').trim();
       console.log("Raw Gemini Response for Curriculum:", text);
 
       const parsed = JSON.parse(text);

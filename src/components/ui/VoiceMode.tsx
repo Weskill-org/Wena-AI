@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import VoiceOrb from './VoiceOrb';
 import { GeminiLiveClient } from '@/services/liveService';
 import { Sparkles, X } from 'lucide-react';
+import { supabase } from "@/integrations/supabase/client";
 
 interface VoiceModeProps {
     onDeductCredit: () => void;
@@ -98,62 +99,75 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
 
         // Initialize Client
         if (!liveClient.current) {
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-            if (!apiKey) {
-                setError("API Key not found.");
+            try {
+                // Fetch API Key from Edge Function securely
+                const { data, error: keyError } = await supabase.functions.invoke('get-gemini-key', {
+                    body: { mode: 'get_key' }
+                });
+
+                if (keyError || !data?.apiKey) {
+                    console.error("Failed to fetch API key:", keyError);
+                    setError("Failed to retrieve API configurations.");
+                    return;
+                }
+
+                const apiKey = data.apiKey;
+
+                // Construct system instruction with user persona context
+                const roleInstruction = ROLES[selectedRole];
+                const fullSystemInstruction = personaContext
+                    ? `${roleInstruction}\n\nIMPORTANT USER CONTEXT (Use this to personalize the interaction):\n${personaContext}`
+                    : roleInstruction;
+
+                liveClient.current = new GeminiLiveClient({
+                    apiKey,
+                    systemInstruction: fullSystemInstruction,
+                    onConnect: () => {
+                        setActive(true);
+                        setTranscript(prev => [...prev, `System: Connected as ${selectedRole}`]);
+
+                        // Deduct credit immediately on start, then every minute
+                        onDeductCredit();
+                        billingInterval.current = setInterval(() => {
+                            onDeductCredit();
+                        }, 60000);
+                    },
+                    onResponse: () => {
+                        // Previously deducted here, now handled by interval
+                    },
+                    onDisconnect: () => {
+                        setActive(false);
+                        setVolume(0);
+                        setTranscript(prev => [...prev, "System: Disconnected."]);
+                        // Reset client so we can re-init with new role if needed next time
+                        liveClient.current = null;
+
+                        if (billingInterval.current) {
+                            clearInterval(billingInterval.current);
+                            billingInterval.current = null;
+                        }
+                    },
+                    onVolumeChange: (vol) => {
+                        setVolume(vol);
+                    },
+                    onError: (err) => {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        setError(`Connection failed: ${errorMessage}`);
+                        console.error(err);
+                        setActive(false);
+                        liveClient.current = null;
+
+                        if (billingInterval.current) {
+                            clearInterval(billingInterval.current);
+                            billingInterval.current = null;
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("Error initializing voice mode:", err);
+                setError("Failed to initialize voice service.");
                 return;
             }
-
-            // Construct system instruction with user persona context
-            const roleInstruction = ROLES[selectedRole];
-            const fullSystemInstruction = personaContext
-                ? `${roleInstruction}\n\nIMPORTANT USER CONTEXT (Use this to personalize the interaction):\n${personaContext}`
-                : roleInstruction;
-
-            liveClient.current = new GeminiLiveClient({
-                apiKey,
-                systemInstruction: fullSystemInstruction,
-                onConnect: () => {
-                    setActive(true);
-                    setTranscript(prev => [...prev, `System: Connected as ${selectedRole}`]);
-
-                    // Deduct credit immediately on start, then every minute
-                    onDeductCredit();
-                    billingInterval.current = setInterval(() => {
-                        onDeductCredit();
-                    }, 60000);
-                },
-                onResponse: () => {
-                    // Previously deducted here, now handled by interval
-                },
-                onDisconnect: () => {
-                    setActive(false);
-                    setVolume(0);
-                    setTranscript(prev => [...prev, "System: Disconnected."]);
-                    // Reset client so we can re-init with new role if needed next time
-                    liveClient.current = null;
-
-                    if (billingInterval.current) {
-                        clearInterval(billingInterval.current);
-                        billingInterval.current = null;
-                    }
-                },
-                onVolumeChange: (vol) => {
-                    setVolume(vol);
-                },
-                onError: (err) => {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    setError(`Connection failed: ${errorMessage}`);
-                    console.error(err);
-                    setActive(false);
-                    liveClient.current = null;
-
-                    if (billingInterval.current) {
-                        clearInterval(billingInterval.current);
-                        billingInterval.current = null;
-                    }
-                }
-            });
         }
 
         await liveClient.current.connect();

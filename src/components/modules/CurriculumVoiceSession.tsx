@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import VoiceOrb from '@/components/ui/VoiceOrb';
 import { GeminiLiveClient } from '@/services/liveService';
 import { Sparkles, X } from 'lucide-react';
+import { supabase } from "@/integrations/supabase/client";
 
 interface CurriculumVoiceSessionProps {
     moduleTitle: string;
@@ -31,41 +32,53 @@ const CurriculumVoiceSession: React.FC<CurriculumVoiceSessionProps> = ({ moduleT
     const connect = async () => {
         if (liveClient.current) return;
 
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-        if (!apiKey) {
-            setError("API Key not found.");
-            return;
-        }
-
-        const systemInstruction = `You are a Curriculum Guide for the learning module "${moduleTitle}". The user's persona is "${persona}". Your goal is to ask 2-3 relevant questions to understand their specific needs and tailor the first lesson. Be concise, friendly, and focused. Do not lecture; just gather information to personalize the learning experience.`;
-
-        liveClient.current = new GeminiLiveClient({
-            apiKey,
-            systemInstruction,
-            onConnect: () => {
-                setTranscript(prev => [...prev, `System: Connected. Personalizing for ${moduleTitle}...`]);
-            },
-            onDisconnect: () => {
-                setVolume(0);
-                setTranscript(prev => [...prev, "System: Disconnected."]);
-                liveClient.current = null;
-            },
-            onVolumeChange: (vol) => {
-                setVolume(vol);
-            },
-            onError: (err) => {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                setError(`Connection failed: ${errorMessage}`);
-                console.error(err);
-                liveClient.current = null;
-            }
-        });
-
         try {
-            await liveClient.current.connect();
+            const { data, error: keyError } = await supabase.functions.invoke('get-gemini-key', {
+                body: { mode: 'get_key' }
+            });
+
+            if (keyError || !data?.apiKey) {
+                console.error("Failed to fetch API key:", keyError);
+                setError("Failed to retrieve API configurations.");
+                return;
+            }
+
+            const apiKey = data.apiKey;
+
+            const systemInstruction = `You are a Curriculum Guide for the learning module "${moduleTitle}". The user's persona is "${persona}". Your goal is to ask 2-3 relevant questions to understand their specific needs and tailor the first lesson. Be concise, friendly, and focused. Do not lecture; just gather information to personalize the learning experience.`;
+
+            liveClient.current = new GeminiLiveClient({
+                apiKey,
+                systemInstruction,
+                onConnect: () => {
+                    setTranscript(prev => [...prev, `System: Connected. Personalizing for ${moduleTitle}...`]);
+                },
+                onDisconnect: () => {
+                    setVolume(0);
+                    setTranscript(prev => [...prev, "System: Disconnected."]);
+                    liveClient.current = null;
+                },
+                onVolumeChange: (vol) => {
+                    setVolume(vol);
+                },
+                onError: (err) => {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    setError(`Connection failed: ${errorMessage}`);
+                    console.error(err);
+                    liveClient.current = null;
+                }
+            });
+
+            try {
+                await liveClient.current.connect();
+            } catch (err) {
+                setError("Failed to connect to Voice AI.");
+                console.error(err);
+            }
+
         } catch (err) {
-            setError("Failed to connect to Voice AI.");
-            console.error(err);
+            console.error("Error connecting to voice session:", err);
+            setError("Failed to initialize voice session.");
         }
     };
 
