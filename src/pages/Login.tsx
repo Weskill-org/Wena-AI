@@ -305,7 +305,7 @@ export default function Login() {
                   >
                     {loading ? "Signing in..." : "Sign In 🚀"}
                   </GradientButton>
-                  
+
                   <button
                     type="button"
                     onClick={() => setShowResetPassword(true)}
@@ -315,7 +315,7 @@ export default function Login() {
                   </button>
                 </motion.form>
               </AnimatePresence>
-              
+
               {/* Reset Password Modal */}
               <AnimatePresence>
                 {showResetPassword && (
@@ -557,7 +557,7 @@ export default function Login() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
         >
-          By continuing, you agree to our Terms of Service and Privacy Policy 🔒
+          By continuing, you agree to our <a href="/terms" className="underline hover:text-primary transition-colors">Terms of Service</a> and <a href="/privacy" className="underline hover:text-primary transition-colors">Privacy Policy</a> 🔒
         </motion.p>
       </motion.div>
     </div>
