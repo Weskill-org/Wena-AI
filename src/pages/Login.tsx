@@ -71,6 +71,28 @@ export default function Login() {
       return;
     }
 
+    // Validate phone number (10-15 digits)
+    const phoneDigits = signUpData.phoneNumber.replace(/\D/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a valid phone number (10-15 digits).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate date of birth (must be before 2020)
+    const dobYear = new Date(signUpData.dateOfBirth).getFullYear();
+    if (dobYear >= 2020 || isNaN(dobYear)) {
+      toast({
+        title: "Invalid Date of Birth",
+        description: "Please provide your correct Date of Birth",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     const { data, error } = await signUp(signUpData.email, signUpData.password, {
       full_name: signUpData.fullName,
@@ -424,9 +446,17 @@ export default function Login() {
                     <Input
                       id="signup-phone"
                       type="tel"
-                      placeholder="+1 234 567 8900"
+                      inputMode="numeric"
+                      placeholder="9876543210"
                       value={signUpData.phoneNumber}
-                      onChange={(e) => setSignUpData({ ...signUpData, phoneNumber: e.target.value })}
+                      onChange={(e) => {
+                        let value = e.target.value;
+                        // Keep only digits and + at the beginning
+                        value = value.replace(/[^\d+]/g, '');
+                        if (value.indexOf('+') > 0) value = '+' + value.replace(/\+/g, '');
+                        setSignUpData({ ...signUpData, phoneNumber: value });
+                      }}
+                      maxLength={15}
                       className="bg-input border-border rounded-xl h-12"
                     />
                   </div>
@@ -438,6 +468,7 @@ export default function Login() {
                     <Input
                       id="signup-dob"
                       type="date"
+                      max="2019-12-31"
                       value={signUpData.dateOfBirth}
                       onChange={(e) => setSignUpData({ ...signUpData, dateOfBirth: e.target.value })}
                       className="bg-input border-border rounded-xl h-12"

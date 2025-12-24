@@ -3,17 +3,18 @@ import { cn } from "@/lib/utils";
 import { motion, HTMLMotionProps } from "framer-motion";
 
 interface GradientButtonProps extends Omit<HTMLMotionProps<"button">, "ref"> {
-  variant?: "primary" | "secondary" | "accent";
+  variant?: "primary" | "secondary" | "accent" | "ghost";
   glow?: boolean;
 }
 
 const GradientButton = forwardRef<HTMLButtonElement, GradientButtonProps>(
   ({ className, variant = "primary", glow = false, children, ...props }, ref) => {
-    const variants = {
-      primary: "bg-gradient-primary hover:opacity-90",
-      secondary: "bg-gradient-secondary hover:opacity-90",
-      accent: "bg-gradient-accent hover:opacity-90",
-    };
+  const variants = {
+    primary: "bg-gradient-primary hover:opacity-90",
+    secondary: "bg-gradient-secondary hover:opacity-90",
+    accent: "bg-gradient-accent hover:opacity-90",
+    ghost: "bg-transparent hover:bg-muted/50 text-foreground",
+  };
 
     const glowClasses = {
       primary: "glow-primary",
