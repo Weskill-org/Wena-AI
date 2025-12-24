@@ -3,17 +3,35 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Bot, Mail, Lock, User, Phone, Calendar, Sparkles, Gift } from "lucide-react";
+import { Bot, Mail, Lock, User, Phone, Calendar, Sparkles, Gift, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { personaService } from "@/services/personaService";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface CountryPrefix {
+  id: string;
+  country_code: string;
+  country_name: string;
+  dial_code: string;
+  flag_emoji: string;
+}
 
 export default function Login() {
   const { signUp, signIn, signInWithMagicLink, resetPassword, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
+  const [countryPrefixes, setCountryPrefixes] = useState<CountryPrefix[]>([]);
+  const [selectedPrefix, setSelectedPrefix] = useState<string>("+91");
 
   // Sign Up form
   const [signUpData, setSignUpData] = useState({
@@ -33,6 +51,46 @@ export default function Login() {
     if (refCode) {
       setSignUpData(prev => ({ ...prev, referralCode: refCode.toUpperCase() }));
     }
+  }, []);
+
+  // Fetch country prefixes and auto-detect country from IP
+  useEffect(() => {
+    const fetchCountryPrefixes = async () => {
+      const { data, error } = await supabase
+        .from('country_prefixes')
+        .select('*')
+        .order('country_name');
+      
+      if (data && !error) {
+        setCountryPrefixes(data);
+      }
+    };
+
+    const detectCountryFromIP = async () => {
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        const data = await response.json();
+        if (data?.country_code) {
+          // Map country code to dial code
+          const countryMapping: Record<string, string> = {
+            'IN': '+91',
+            'US': '+1',
+            'AU': '+61',
+            'FR': '+33',
+            'GB': '+44',
+          };
+          const detectedPrefix = countryMapping[data.country_code];
+          if (detectedPrefix) {
+            setSelectedPrefix(detectedPrefix);
+          }
+        }
+      } catch (error) {
+        console.log('Could not detect country from IP, using default');
+      }
+    };
+
+    fetchCountryPrefixes();
+    detectCountryFromIP();
   }, []);
 
   // Sign In form
@@ -94,9 +152,10 @@ export default function Login() {
     }
 
     setLoading(true);
+    const fullPhoneNumber = `${selectedPrefix}${signUpData.phoneNumber}`;
     const { data, error } = await signUp(signUpData.email, signUpData.password, {
       full_name: signUpData.fullName,
-      phone_number: signUpData.phoneNumber,
+      phone_number: fullPhoneNumber,
       date_of_birth: signUpData.dateOfBirth,
       referral_code: signUpData.referralCode || null,
     });
@@ -443,22 +502,41 @@ export default function Login() {
                       <Phone className="w-4 h-4" />
                       Phone Number
                     </Label>
-                    <Input
-                      id="signup-phone"
-                      type="tel"
-                      inputMode="numeric"
-                      placeholder="9876543210"
-                      value={signUpData.phoneNumber}
-                      onChange={(e) => {
-                        let value = e.target.value;
-                        // Keep only digits and + at the beginning
-                        value = value.replace(/[^\d+]/g, '');
-                        if (value.indexOf('+') > 0) value = '+' + value.replace(/\+/g, '');
-                        setSignUpData({ ...signUpData, phoneNumber: value });
-                      }}
-                      maxLength={15}
-                      className="bg-input border-border rounded-xl h-12"
-                    />
+                    <div className="flex gap-2">
+                      <Select value={selectedPrefix} onValueChange={setSelectedPrefix}>
+                        <SelectTrigger className="w-[110px] bg-input border-border rounded-xl h-12 shrink-0">
+                          <SelectValue>
+                            {countryPrefixes.find(c => c.dial_code === selectedPrefix)?.flag_emoji || '🌍'} {selectedPrefix}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="bg-surface border-border">
+                          {countryPrefixes.map((country) => (
+                            <SelectItem 
+                              key={country.id} 
+                              value={country.dial_code}
+                              className="cursor-pointer"
+                            >
+                              {country.flag_emoji} {country.country_name} ({country.dial_code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        id="signup-phone"
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="9876543210"
+                        value={signUpData.phoneNumber}
+                        onChange={(e) => {
+                          let value = e.target.value;
+                          // Keep only digits
+                          value = value.replace(/\D/g, '');
+                          setSignUpData({ ...signUpData, phoneNumber: value });
+                        }}
+                        maxLength={12}
+                        className="bg-input border-border rounded-xl h-12 flex-1"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-dob" className="text-foreground flex items-center gap-2">
