@@ -129,12 +129,12 @@ export default function Login() {
       return;
     }
 
-    // Validate phone number (10-15 digits)
+    // Validate phone number (exactly 10 digits)
     const phoneDigits = signUpData.phoneNumber.replace(/\D/g, '');
-    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+    if (phoneDigits.length !== 10) {
       toast({
         title: "Invalid Phone Number",
-        description: "Please enter a valid phone number (10-15 digits).",
+        description: "Please enter a valid 10-digit phone number.",
         variant: "destructive",
       });
       return;
@@ -525,15 +525,15 @@ export default function Login() {
                         id="signup-phone"
                         type="tel"
                         inputMode="numeric"
+                        pattern="[0-9]*"
                         placeholder="9876543210"
                         value={signUpData.phoneNumber}
                         onChange={(e) => {
-                          let value = e.target.value;
-                          // Keep only digits
-                          value = value.replace(/\D/g, '');
+                          // Keep only digits, max 10
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 10);
                           setSignUpData({ ...signUpData, phoneNumber: value });
                         }}
-                        maxLength={12}
+                        maxLength={10}
                         className="bg-input border-border rounded-xl h-12 flex-1"
                       />
                     </div>
