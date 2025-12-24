@@ -109,6 +109,33 @@ export type Database = {
           },
         ]
       }
+      country_prefixes: {
+        Row: {
+          country_code: string
+          country_name: string
+          created_at: string
+          dial_code: string
+          flag_emoji: string
+          id: string
+        }
+        Insert: {
+          country_code: string
+          country_name: string
+          created_at?: string
+          dial_code: string
+          flag_emoji: string
+          id?: string
+        }
+        Update: {
+          country_code?: string
+          country_name?: string
+          created_at?: string
+          dial_code?: string
+          flag_emoji?: string
+          id?: string
+        }
+        Relationships: []
+      }
       coupon_codes: {
         Row: {
           code: string
