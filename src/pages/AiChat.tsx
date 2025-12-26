@@ -47,10 +47,8 @@ export default function AiChat() {
     mutationFn: async () => {
       if (!user?.id || credits <= 0) return;
 
-      const { error } = await supabase
-        .from('wallets')
-        .update({ credits: credits - 1 })
-        .eq('user_id', user?.id);
+      // Use secure RPC function instead of direct update
+      const { error } = await supabase.rpc('deduct_ai_credits', { amount: 1 });
 
       if (error) throw error;
     },

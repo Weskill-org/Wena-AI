@@ -199,27 +199,6 @@ export type Database = {
         }
         Relationships: []
       }
-      debug_logs: {
-        Row: {
-          created_at: string | null
-          id: string
-          message: string | null
-          payload: Json | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          message?: string | null
-          payload?: Json | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          message?: string | null
-          payload?: Json | null
-        }
-        Relationships: []
-      }
       discount_codes: {
         Row: {
           code: string
@@ -760,7 +739,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_credits: {
+        Args: { amount: number; transaction_label: string }
+        Returns: boolean
+      }
       deduct_ai_credits: { Args: { amount?: number }; Returns: undefined }
+      deduct_credits: {
+        Args: { amount: number; transaction_label: string }
+        Returns: boolean
+      }
       generate_referral_code: {
         Args: { user_id_param: string }
         Returns: string
