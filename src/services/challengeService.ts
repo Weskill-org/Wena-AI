@@ -232,13 +232,15 @@ export const challengeService = {
 
         if (error) console.error("Error updating stats", error);
 
-        // Update Wallet credits if XP gained (simple 1:1 or logic)
-        // Let's give 10 credits for a win
+        // Update Wallet credits if XP gained using secure RPC function
+        // Give 10 credits for a win
         if (isWin && xpGained > 0) {
-            // Fetch current credits to add
-            const { data: wallet } = await supabase.from('wallets').select('credits').eq('user_id', userId).single();
-            if (wallet) {
-                await supabase.from('wallets').update({ credits: wallet.credits + 10 }).eq('user_id', userId);
+            const { error: addCreditsError } = await supabase.rpc('add_credits', {
+                amount: 10,
+                transaction_label: 'Challenge reward'
+            });
+            if (addCreditsError) {
+                console.error("Error adding credits:", addCreditsError);
             }
         }
     },

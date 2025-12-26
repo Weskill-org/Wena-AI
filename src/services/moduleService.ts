@@ -29,27 +29,20 @@ export const moduleService = {
     },
 
     async unlockModule(moduleId: string, userId: string, cost: number): Promise<void> {
-        // 1. Check if user has enough credits
-        const { data: wallet, error: walletError } = await supabase
-            .from("wallets")
-            .select("credits")
-            .eq("user_id", userId)
-            .single();
+        // 1. Deduct credits using secure RPC function (handles validation & transaction logging)
+        const { error: deductError } = await supabase.rpc('deduct_credits', {
+            amount: cost,
+            transaction_label: 'Unlocked module'
+        });
 
-        if (walletError) throw walletError;
-        if (!wallet || wallet.credits < cost) {
-            throw new Error("Insufficient credits");
+        if (deductError) {
+            if (deductError.message?.includes('Insufficient credits')) {
+                throw new Error("Insufficient credits");
+            }
+            throw deductError;
         }
 
-        // 2. Deduct credits
-        const { error: updateWalletError } = await supabase
-            .from("wallets")
-            .update({ credits: wallet.credits - cost })
-            .eq("user_id", userId);
-
-        if (updateWalletError) throw updateWalletError;
-
-        // 3. Create unlock record
+        // 2. Create unlock record
         const { error: unlockError } = await supabase
             .from("user_module_progress" as any)
             .insert({
@@ -60,18 +53,6 @@ export const moduleService = {
             });
 
         if (unlockError) throw unlockError;
-
-        // 4. Record transaction
-        const { error: transactionError } = await supabase
-            .from("transactions")
-            .insert({
-                user_id: userId,
-                amount: cost,
-                type: "spent",
-                label: `Unlocked module`,
-            });
-
-        if (transactionError) console.error("Failed to record transaction", transactionError);
     },
 
     async getModuleDetails(moduleId: string) {
@@ -128,60 +109,29 @@ export const moduleService = {
     async unlockLesson(lessonId: string, userId: string): Promise<void> {
         const COST = 2;
 
-        // 1. Check wallet
-        const { data: wallet, error: walletError } = await supabase
-            .from("wallets")
-            .select("credits")
-            .eq("user_id", userId)
-            .single();
+        // 1. Deduct credits using secure RPC function (handles validation & transaction logging)
+        const { error: deductError } = await supabase.rpc('deduct_credits', {
+            amount: COST,
+            transaction_label: 'Unlocked lesson'
+        });
 
-        if (walletError) throw walletError;
-        if (!wallet || wallet.credits < COST) {
-            throw new Error("Insufficient credits");
+        if (deductError) {
+            if (deductError.message?.includes('Insufficient credits')) {
+                throw new Error("Insufficient credits");
+            }
+            throw deductError;
         }
 
-        // 2. Deduct credits
-        const { error: updateWalletError } = await supabase
-            .from("wallets")
-            .update({ credits: wallet.credits - COST })
-            .eq("user_id", userId);
-
-        if (updateWalletError) throw updateWalletError;
-
-        // 3. Unlock lesson
+        // 2. Unlock lesson
         const { error: unlockError } = await supabase
             .from("user_lesson_progress" as any)
             .upsert({
                 user_id: userId,
                 lesson_id: lessonId,
                 unlocked: true,
-                // Preserve existing completion status if any (though upsert might overwrite if not careful, 
-                // but here we want to ensure it exists and is unlocked. 
-                // To be safe, we should probably check existence first or use a more careful query, 
-                // but standard upsert with default false for completed is risky if it was already completed?
-                // Actually, if it was completed, it's already unlocked conceptually.
-                // But let's assume we are unlocking a locked one.
             }, { onConflict: "user_id, lesson_id" });
 
-        // Better approach for #3: Use update if exists, insert if not. 
-        // Or just upsert with ignoreDuplicates? No.
-        // Let's just do a simple upsert but we need to be careful not to reset 'completed' to false if it was true.
-        // Actually, if they are paying to unlock, it implies it wasn't completed (or unlocked) yet.
-        // So upserting `unlocked: true` is fine. If it was already there, we just update `unlocked`.
-        // Wait, if I upsert `{user_id, lesson_id, unlocked: true}`, and the row exists with `completed: true`, 
-        // will `completed` be reset to default (false) or null?
-        // Supabase upsert updates ONLY the specified columns if the row exists. 
-        // So `completed` should be preserved.
-
         if (unlockError) throw unlockError;
-
-        // 4. Record transaction
-        await supabase.from("transactions").insert({
-            user_id: userId,
-            amount: COST,
-            type: "spent",
-            label: "Unlocked lesson"
-        });
     },
 
     async getLesson(lessonId: string) {
