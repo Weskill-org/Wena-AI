@@ -676,6 +676,7 @@ export type Database = {
         Row: {
           current_streak: number
           last_challenge_date: string | null
+          last_wrong_attempt_at: string | null
           longest_streak: number
           tier: string
           total_xp: number
@@ -685,6 +686,7 @@ export type Database = {
         Insert: {
           current_streak?: number
           last_challenge_date?: string | null
+          last_wrong_attempt_at?: string | null
           longest_streak?: number
           tier?: string
           total_xp?: number
@@ -694,6 +696,7 @@ export type Database = {
         Update: {
           current_streak?: number
           last_challenge_date?: string | null
+          last_wrong_attempt_at?: string | null
           longest_streak?: number
           tier?: string
           total_xp?: number

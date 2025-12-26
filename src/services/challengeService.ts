@@ -1,14 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { sendMessageToGemini } from "@/lib/gemini";
 
-export interface DailyChallenge {
-    id: string;
+export interface GeneratedChallenge {
     question: string;
-    options: string[] | null;
-    correct_answer?: string;
+    options: string[];
+    correct_answer: string;
     difficulty: string;
     topic: string;
-    challenge_date: string;
 }
 
 export interface UserStats {
@@ -17,241 +15,224 @@ export interface UserStats {
     longest_streak: number;
     tier: string;
     last_challenge_date: string | null;
+    last_wrong_attempt_at: string | null;
 }
 
 export interface LeaderboardEntry {
     user_id: string;
-    full_name: string;
+    first_name: string;
     avatar_url: string | null;
     total_xp: number;
-    tier: string;
+    current_streak: number;
     rank: number;
 }
 
+// Streak rewards: every 5 days, incremental credits
+const STREAK_REWARDS: Record<number, number> = {
+    5: 20,
+    10: 40,
+    15: 60,
+    20: 80,
+    25: 100,
+    30: 150
+};
+
 export const challengeService = {
-    async getDailyChallenge(userId: string) {
-        // 1. Check if a challenge exists for today
-        const today = new Date().toISOString().split('T')[0];
-
-        let { data: challenge, error } = await supabase
-            .from('daily_challenges')
-            .select('*')
-            .eq('challenge_date', today)
-            .maybeSingle();
-
-        if (!challenge) {
-            // Lazy Generate Challenge
-            console.log("No challenge found for today. Generating one...");
-            challenge = await this.generateDailyChallenge(today);
-        }
-
-        // 2. Check if user has attempted it
-        const { data: attempt } = await supabase
-            .from('user_challenge_attempts')
-            .select('*')
-            .eq('user_id', userId)
-            .eq('challenge_id', challenge.id)
-            .maybeSingle();
-
-        return {
-            challenge: {
-                ...challenge,
-                options: challenge.options ? (typeof challenge.options === 'string' ? JSON.parse(challenge.options) : challenge.options) : null
-            } as DailyChallenge,
-            attempt: attempt
-        };
-    },
-
-    async generateDailyChallenge(date: string) {
+    // Generate a fresh AI question in real-time (not stored in DB)
+    async generateChallenge(): Promise<GeneratedChallenge> {
         const prompt = `
             Generate a single engaging daily trivia or logic challenge question.
-            Topic should be general knowledge, science, technology, or history.
+            Topics can be: general knowledge, science, technology, history, geography, arts, sports.
+            Make it interesting and educational.
             
-            Return ONLY a valid JSON object with this structure:
+            Return ONLY a valid JSON object with this exact structure (no markdown, no code blocks):
             {
-                "question": "The question string",
+                "question": "The question string here",
                 "options": ["Option A", "Option B", "Option C", "Option D"],
-                "correct_answer": "Option A" (Must match one of the options exactly),
-                "difficulty": "Easy" (or Medium, Hard),
+                "correct_answer": "Option A",
+                "difficulty": "Medium",
                 "topic": "Science"
             }
+            
+            Rules:
+            - correct_answer MUST be exactly one of the options
+            - difficulty must be Easy, Medium, or Hard
+            - 4 options always
         `;
 
         try {
-            const responseText = await sendMessageToGemini(prompt);
+            const responseText = await sendMessageToGemini(prompt, "gemini-2.5-flash");
             const cleanedResponse = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
             const challengeData = JSON.parse(cleanedResponse);
-
-            const { data, error } = await supabase
-                .from('daily_challenges')
-                .insert({
-                    question: challengeData.question,
-                    options: JSON.stringify(challengeData.options),
-                    correct_answer: challengeData.correct_answer,
-                    difficulty: challengeData.difficulty,
-                    topic: challengeData.topic,
-                    challenge_date: date
-                })
-                .select()
-                .single();
-
-            if (error) {
-                console.error("Supabase error creating challenge:", error);
-                // Handle race condition if created in parallel
-                if (error.code === '23505') { // Unique violation
-                    const { data: existing } = await supabase
-                        .from('daily_challenges')
-                        .select('*')
-                        .eq('challenge_date', date)
-                        .single();
-                    return existing;
-                }
-                throw error;
-            }
-            return data;
+            
+            return {
+                question: challengeData.question,
+                options: challengeData.options,
+                correct_answer: challengeData.correct_answer,
+                difficulty: challengeData.difficulty || 'Medium',
+                topic: challengeData.topic || 'General'
+            };
         } catch (error) {
             console.error("Error generating challenge:", error);
-            // Fallback hardcoded challenge if AI fails
+            // Fallback question
             return {
-                id: 'fallback',
                 question: 'Which planet is known as the Red Planet?',
-                options: JSON.stringify(['Earth', 'Mars', 'Jupiter', 'Saturn']),
+                options: ['Earth', 'Mars', 'Jupiter', 'Saturn'],
                 correct_answer: 'Mars',
                 difficulty: 'Easy',
-                topic: 'Science',
-                challenge_date: date
+                topic: 'Science'
             };
         }
     },
 
-    async submitChallenge(userId: string, challengeId: string, response: string) {
-        // 0. Handle Fallback Case (Client-side only)
-        if (challengeId === 'fallback') {
-            console.log("Submitting fallback challenge");
-            const isCorrect = response === 'Mars';
-            // We cannot save to DB because 'fallback' is not a valid UUID for foreign key
-            // Just return local result
-            return { isCorrect, points: 0 };
-        }
-
-        // 1. Verify Answer
-        const { data: challenge, error: fetchError } = await supabase
-            .from('daily_challenges')
-            .select('correct_answer, difficulty')
-            .eq('id', challengeId)
-            .single();
-
-        if (fetchError || !challenge) {
-            console.error("Error fetching challenge for verification:", fetchError);
-            throw new Error("Challenge not found");
-        }
-
-        const isCorrect = response === challenge.correct_answer;
-        let points = 0;
-
-        if (isCorrect) {
-            points = challenge.difficulty === 'Hard' ? 50 : challenge.difficulty === 'Medium' ? 30 : 10;
-        }
-
-        // 2. Record Attempt
-        const { error: attemptError } = await supabase
-            .from('user_challenge_attempts')
-            .insert({
-                user_id: userId,
-                challenge_id: challengeId,
-                response: response,
-                is_correct: isCorrect,
-                points_earned: points
-            });
-
-        if (attemptError) {
-            // If duplicate attempt, ignore or throw?
-            if (attemptError.code === '23505') {
-                console.log("Already attempted");
-            } else {
-                throw attemptError;
-            }
-        }
-
-        if (isCorrect) {
-            // 3. Update User Stats & Wallet
-            await this.updateUserStats(userId, points);
-        } else {
-            // Update stats for non-winning attempt (streak checking etc)
-            await this.updateUserStats(userId, 0, false);
-        }
-
-        return { isCorrect, points };
-    },
-
-    async updateUserStats(userId: string, xpGained: number, isWin: boolean = true) {
+    // Check if user can attempt today's challenge
+    async canAttemptToday(userId: string): Promise<{ canAttempt: boolean; reason?: string; waitMinutes?: number; completedToday?: boolean }> {
         const { data: stats } = await supabase
             .from('user_stats')
             .select('*')
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
 
-        let currentStreak = stats?.current_streak || 0;
-        const lastDate = stats?.last_challenge_date ? new Date(stats.last_challenge_date) : null;
-        const today = new Date();
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
+        if (!stats) {
+            return { canAttempt: true };
+        }
 
-        // Streak Logic
-        if (isWin) {
-            if (lastDate && lastDate.toDateString() === yesterday.toDateString()) {
-                currentStreak += 1;
-            } else if (!lastDate || lastDate.toDateString() !== today.toDateString()) {
-                // If last date was not today (already played) and not yesterday (streak broken)
-                // If it is today, we don't increment (already counted, though UI shouldn't allow replay)
-                // If it is older than yesterday, reset
-                currentStreak = 1;
+        const today = new Date().toISOString().split('T')[0];
+        const lastChallengeDate = stats.last_challenge_date ? new Date(stats.last_challenge_date).toISOString().split('T')[0] : null;
+
+        // If already completed today successfully
+        if (lastChallengeDate === today) {
+            return { canAttempt: false, reason: 'completed', completedToday: true };
+        }
+
+        // Check for wrong attempt cooldown (60 minutes)
+        const lastWrongAttempt = (stats as any).last_wrong_attempt_at;
+        if (lastWrongAttempt) {
+            const wrongAttemptTime = new Date(lastWrongAttempt);
+            const now = new Date();
+            const diffMinutes = (now.getTime() - wrongAttemptTime.getTime()) / (1000 * 60);
+            
+            if (diffMinutes < 60) {
+                const waitMinutes = Math.ceil(60 - diffMinutes);
+                return { canAttempt: false, reason: 'cooldown', waitMinutes };
             }
         }
 
-        // Tier Logic
-        const newTotalXp = (stats?.total_xp || 0) + xpGained;
-        let tier = 'Bronze';
-        if (newTotalXp > 5000) tier = 'Diamond';
-        else if (newTotalXp > 3000) tier = 'Platinum';
-        else if (newTotalXp > 1500) tier = 'Gold';
-        else if (newTotalXp > 500) tier = 'Silver';
+        return { canAttempt: true };
+    },
 
-        const updates = {
-            total_xp: newTotalXp,
-            current_streak: currentStreak,
-            longest_streak: Math.max(currentStreak, stats?.longest_streak || 0),
-            last_challenge_date: new Date().toISOString(),
-            tier: tier,
-            updated_at: new Date().toISOString()
-        };
-
-        const { error } = await supabase
+    // Submit answer and update stats
+    async submitAnswer(userId: string, selectedAnswer: string, correctAnswer: string): Promise<{
+        isCorrect: boolean;
+        xpEarned: number;
+        creditsEarned: number;
+        newStreak: number;
+        streakReward?: number;
+        daysToNextReward: number;
+    }> {
+        const isCorrect = selectedAnswer === correctAnswer;
+        
+        // Get current stats
+        const { data: stats } = await supabase
             .from('user_stats')
-            .upsert({ user_id: userId, ...updates });
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
 
-        if (error) console.error("Error updating stats", error);
+        const currentXp = stats?.total_xp || 0;
+        let currentStreak = stats?.current_streak || 0;
+        const longestStreak = stats?.longest_streak || 0;
 
-        // Update Wallet credits if XP gained using secure RPC function
-        // Give 10 credits for a win
-        if (isWin && xpGained > 0) {
+        // Check for monthly reset (1st of month)
+        const today = new Date();
+        const lastDate = stats?.last_challenge_date ? new Date(stats.last_challenge_date) : null;
+        
+        if (lastDate && lastDate.getMonth() !== today.getMonth()) {
+            // Reset streak for new month
+            currentStreak = 0;
+        }
+
+        let xpEarned = 0;
+        let creditsEarned = 0;
+        let streakReward: number | undefined;
+        let newStreak = currentStreak;
+
+        if (isCorrect) {
+            // XP based on difficulty (we assume Medium for AI-generated)
+            xpEarned = 30;
+            creditsEarned = 10;
+            newStreak = currentStreak + 1;
+
+            // Check for streak reward (every 5 days)
+            if (newStreak > 0 && newStreak % 5 === 0 && STREAK_REWARDS[newStreak]) {
+                streakReward = STREAK_REWARDS[newStreak];
+                creditsEarned += streakReward;
+            }
+
+            // Update stats
+            const updates = {
+                user_id: userId,
+                total_xp: currentXp + xpEarned,
+                current_streak: newStreak,
+                longest_streak: Math.max(newStreak, longestStreak),
+                last_challenge_date: new Date().toISOString(),
+                last_wrong_attempt_at: null, // Clear wrong attempt on success
+                tier: this.calculateTier(currentXp + xpEarned),
+                updated_at: new Date().toISOString()
+            };
+
+            await supabase.from('user_stats').upsert(updates);
+
+            // Add credits using RPC
             const { error: addCreditsError } = await supabase.rpc('add_credits', {
-                amount: 10,
-                transaction_label: 'Challenge reward'
+                amount: creditsEarned,
+                transaction_label: streakReward ? `Challenge reward + ${newStreak}-day streak bonus` : 'Challenge reward'
             });
+            
             if (addCreditsError) {
                 console.error("Error adding credits:", addCreditsError);
             }
+        } else {
+            // Wrong answer - set cooldown
+            await supabase.from('user_stats').upsert({
+                user_id: userId,
+                total_xp: currentXp,
+                current_streak: currentStreak,
+                longest_streak: longestStreak,
+                last_wrong_attempt_at: new Date().toISOString(),
+                tier: this.calculateTier(currentXp),
+                updated_at: new Date().toISOString()
+            });
         }
+
+        // Calculate days to next 5-day milestone
+        const nextMilestone = Math.ceil((newStreak + 1) / 5) * 5;
+        const daysToNextReward = nextMilestone - newStreak;
+
+        return {
+            isCorrect,
+            xpEarned,
+            creditsEarned,
+            newStreak,
+            streakReward,
+            daysToNextReward
+        };
     },
 
-    async getLeaderboard() {
-        // Fetch stats joined with profiles
+    calculateTier(xp: number): string {
+        if (xp >= 5000) return 'Diamond';
+        if (xp >= 3000) return 'Platinum';
+        if (xp >= 1500) return 'Gold';
+        if (xp >= 500) return 'Silver';
+        return 'Bronze';
+    },
+
+    async getLeaderboard(): Promise<LeaderboardEntry[]> {
         const { data, error } = await supabase
             .from('user_stats')
             .select(`
                 total_xp,
-                tier,
+                current_streak,
                 profiles (
                     id,
                     full_name,
@@ -261,19 +242,27 @@ export const challengeService = {
             .order('total_xp', { ascending: false })
             .limit(10);
 
-        if (error) throw error;
+        if (error) {
+            console.error("Error fetching leaderboard:", error);
+            return [];
+        }
 
-        return data.map((entry: any, index: number) => ({
-            user_id: entry.profiles.id,
-            full_name: entry.profiles.full_name,
-            avatar_url: entry.profiles.avatar_url,
-            total_xp: entry.total_xp,
-            tier: entry.tier,
-            rank: index + 1
-        }));
+        return data.map((entry: any, index: number) => {
+            const fullName = entry.profiles?.full_name || 'Anonymous';
+            const firstName = fullName.split(' ')[0]; // Only first name
+            
+            return {
+                user_id: entry.profiles?.id || '',
+                first_name: firstName,
+                avatar_url: entry.profiles?.avatar_url,
+                total_xp: entry.total_xp,
+                current_streak: entry.current_streak,
+                rank: index + 1
+            };
+        });
     },
 
-    async getUserStats(userId: string) {
+    async getUserStats(userId: string): Promise<UserStats> {
         const { data, error } = await supabase
             .from('user_stats')
             .select('*')
@@ -282,13 +271,53 @@ export const challengeService = {
 
         if (!data && !error) {
             // Create if missing
-            try {
-                await supabase.from('user_stats').insert({ user_id: userId });
-                return { total_xp: 0, current_streak: 0, longest_streak: 0, tier: 'Bronze', last_challenge_date: null } as UserStats;
-            } catch (e) {
-                return { total_xp: 0, current_streak: 0, longest_streak: 0, tier: 'Bronze', last_challenge_date: null } as UserStats;
+            await supabase.from('user_stats').insert({ user_id: userId });
+            return {
+                total_xp: 0,
+                current_streak: 0,
+                longest_streak: 0,
+                tier: 'Bronze',
+                last_challenge_date: null,
+                last_wrong_attempt_at: null
+            };
+        }
+
+        const statsData = data as any;
+
+        // Check for monthly reset
+        if (statsData?.last_challenge_date) {
+            const lastDate = new Date(statsData.last_challenge_date);
+            const today = new Date();
+            
+            if (lastDate.getMonth() !== today.getMonth()) {
+                // Reset streak for new month
+                await supabase.from('user_stats').update({
+                    current_streak: 0,
+                    updated_at: new Date().toISOString()
+                }).eq('user_id', userId);
+                
+                return {
+                    total_xp: statsData.total_xp || 0,
+                    current_streak: 0,
+                    longest_streak: statsData.longest_streak || 0,
+                    tier: statsData.tier || 'Bronze',
+                    last_challenge_date: statsData.last_challenge_date,
+                    last_wrong_attempt_at: statsData.last_wrong_attempt_at || null
+                };
             }
         }
-        return data as UserStats;
+
+        return {
+            total_xp: statsData?.total_xp || 0,
+            current_streak: statsData?.current_streak || 0,
+            longest_streak: statsData?.longest_streak || 0,
+            tier: statsData?.tier || 'Bronze',
+            last_challenge_date: statsData?.last_challenge_date || null,
+            last_wrong_attempt_at: statsData?.last_wrong_attempt_at || null
+        };
+    },
+
+    getStreakRewards(): Record<number, number> {
+        return STREAK_REWARDS;
     }
 };
