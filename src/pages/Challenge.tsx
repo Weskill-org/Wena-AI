@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trophy, Flame, CheckCircle2, XCircle, Loader2, Gift, Clock, Play, Crown, Timer } from "lucide-react";
+import { ArrowLeft, Trophy, Flame, CheckCircle2, XCircle, Loader2, Gift, Clock, Play, Crown, Timer, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +11,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 
 const TIMER_SECONDS = 60;
+
+// League colors and icons
+const LEAGUE_STYLES: Record<string, { color: string; bgColor: string; borderColor: string }> = {
+    'Bronze': { color: 'text-amber-700', bgColor: 'bg-amber-700/10', borderColor: 'border-amber-700/30' },
+    'Silver': { color: 'text-slate-400', bgColor: 'bg-slate-400/10', borderColor: 'border-slate-400/30' },
+    'Gold': { color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', borderColor: 'border-yellow-500/30' },
+    'Platinum': { color: 'text-cyan-400', bgColor: 'bg-cyan-400/10', borderColor: 'border-cyan-400/30' },
+    'Diamond': { color: 'text-blue-400', bgColor: 'bg-blue-400/10', borderColor: 'border-blue-400/30' },
+    'Master': { color: 'text-purple-500', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/30' }
+};
 
 export default function Challenge() {
     const navigate = useNavigate();
@@ -33,6 +43,7 @@ export default function Challenge() {
         streakReward?: number;
         daysToNextReward: number;
         correctAnswer: string;
+        newLeague: string;
     } | null>(null);
     
     // Timer
@@ -167,12 +178,22 @@ export default function Challenge() {
                 setUserStats(prev => prev ? {
                     ...prev,
                     total_xp: prev.total_xp + submitResult.xpEarned,
-                    current_streak: submitResult.newStreak
+                    monthly_xp: prev.monthly_xp + submitResult.xpEarned,
+                    current_streak: submitResult.newStreak,
+                    league: submitResult.newLeague
                 } : null);
             } else {
-                toast.error("Incorrect! Try again in 60 minutes.");
+                toast.error(`Incorrect! ${submitResult.xpEarned} XP. Try again in 60 minutes.`);
                 setChallengeState('cooldown');
                 setCooldownMinutes(60);
+                
+                // Update local stats with XP deduction
+                setUserStats(prev => prev ? {
+                    ...prev,
+                    total_xp: Math.max(0, prev.total_xp + submitResult.xpEarned),
+                    monthly_xp: Math.max(0, prev.monthly_xp + submitResult.xpEarned),
+                    league: submitResult.newLeague
+                } : null);
             }
 
             // Refresh leaderboard
@@ -247,10 +268,38 @@ export default function Challenge() {
                     </TabsList>
 
                     <TabsContent value="challenge" className="space-y-4">
+                        {/* League Badge */}
+                        {userStats && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className={`${LEAGUE_STYLES[userStats.league]?.bgColor || 'bg-muted'} border ${LEAGUE_STYLES[userStats.league]?.borderColor || 'border-border'} rounded-2xl p-4`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Shield className={`w-8 h-8 ${LEAGUE_STYLES[userStats.league]?.color || 'text-muted-foreground'}`} />
+                                        <div>
+                                            <span className={`font-bold text-lg ${LEAGUE_STYLES[userStats.league]?.color || ''}`}>
+                                                {userStats.league} League
+                                            </span>
+                                            <p className="text-xs text-muted-foreground">
+                                                {userStats.total_xp} Total XP
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-sm font-medium text-muted-foreground">This Month</span>
+                                        <p className="font-bold text-primary">{userStats.monthly_xp} XP</p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+
                         {/* Streak Progress Card */}
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
                             className="bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/20 rounded-2xl p-4"
                         >
                             <div className="flex items-center justify-between mb-3">
@@ -267,7 +316,7 @@ export default function Challenge() {
                                 className="h-2"
                             />
                             <p className="text-xs text-muted-foreground mt-2">
-                                {nextRewardStreak - (userStats?.current_streak || 0)} days to go • Resets monthly
+                                {nextRewardStreak - (userStats?.current_streak || 0)} days to go
                             </p>
                         </motion.div>
 
@@ -534,7 +583,7 @@ export default function Challenge() {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-bold text-primary">{entry.total_xp} XP</div>
+                                                <div className="font-bold text-primary">{entry.monthly_xp} XP</div>
                                             </div>
                                         </motion.div>
                                     ))

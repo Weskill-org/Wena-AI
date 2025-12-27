@@ -297,6 +297,33 @@ export type Database = {
           },
         ]
       }
+      leagues: {
+        Row: {
+          created_at: string
+          id: string
+          max_xp: number | null
+          min_xp: number
+          name: string
+          rank_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_xp?: number | null
+          min_xp: number
+          name: string
+          rank_order: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_xp?: number | null
+          min_xp?: number
+          name?: string
+          rank_order?: number
+        }
+        Relationships: []
+      }
       lessons: {
         Row: {
           chapter_id: string
@@ -678,6 +705,7 @@ export type Database = {
           last_challenge_date: string | null
           last_wrong_attempt_at: string | null
           longest_streak: number
+          monthly_xp: number
           tier: string
           total_xp: number
           updated_at: string
@@ -688,6 +716,7 @@ export type Database = {
           last_challenge_date?: string | null
           last_wrong_attempt_at?: string | null
           longest_streak?: number
+          monthly_xp?: number
           tier?: string
           total_xp?: number
           updated_at?: string
@@ -698,6 +727,7 @@ export type Database = {
           last_challenge_date?: string | null
           last_wrong_attempt_at?: string | null
           longest_streak?: number
+          monthly_xp?: number
           tier?: string
           total_xp?: number
           updated_at?: string
@@ -755,6 +785,7 @@ export type Database = {
         Args: { user_id_param: string }
         Returns: string
       }
+      get_league_for_xp: { Args: { xp_amount: number }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -762,6 +793,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      reset_monthly_xp: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

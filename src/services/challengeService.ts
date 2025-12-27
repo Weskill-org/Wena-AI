@@ -11,9 +11,10 @@ export interface GeneratedChallenge {
 
 export interface UserStats {
     total_xp: number;
+    monthly_xp: number;
     current_streak: number;
     longest_streak: number;
-    tier: string;
+    league: string;
     last_challenge_date: string | null;
     last_wrong_attempt_at: string | null;
 }
@@ -22,9 +23,16 @@ export interface LeaderboardEntry {
     user_id: string;
     first_name: string;
     avatar_url: string | null;
-    total_xp: number;
+    monthly_xp: number;
     current_streak: number;
     rank: number;
+}
+
+export interface League {
+    name: string;
+    min_xp: number;
+    max_xp: number | null;
+    rank_order: number;
 }
 
 // Streak rewards: every 5 days, incremental credits
@@ -36,6 +44,10 @@ const STREAK_REWARDS: Record<number, number> = {
     25: 100,
     30: 150
 };
+
+// XP values
+const XP_CORRECT = 30;
+const XP_WRONG = -10;
 
 export const challengeService = {
     // Generate a fresh AI question in real-time (not stored in DB)
@@ -129,6 +141,7 @@ export const challengeService = {
         newStreak: number;
         streakReward?: number;
         daysToNextReward: number;
+        newLeague: string;
     }> {
         const isCorrect = selectedAnswer === correctAnswer;
         
@@ -140,28 +153,24 @@ export const challengeService = {
             .maybeSingle();
 
         const currentXp = stats?.total_xp || 0;
+        const currentMonthlyXp = (stats as any)?.monthly_xp || 0;
         let currentStreak = stats?.current_streak || 0;
         const longestStreak = stats?.longest_streak || 0;
-
-        // Check for monthly reset (1st of month)
-        const today = new Date();
-        const lastDate = stats?.last_challenge_date ? new Date(stats.last_challenge_date) : null;
-        
-        if (lastDate && lastDate.getMonth() !== today.getMonth()) {
-            // Reset streak for new month
-            currentStreak = 0;
-        }
 
         let xpEarned = 0;
         let creditsEarned = 0;
         let streakReward: number | undefined;
         let newStreak = currentStreak;
+        let newTotalXp = currentXp;
+        let newMonthlyXp = currentMonthlyXp;
 
         if (isCorrect) {
-            // XP based on difficulty (we assume Medium for AI-generated)
-            xpEarned = 30;
+            // XP for correct answer
+            xpEarned = XP_CORRECT;
             creditsEarned = 10;
             newStreak = currentStreak + 1;
+            newTotalXp = currentXp + xpEarned;
+            newMonthlyXp = currentMonthlyXp + xpEarned;
 
             // Check for streak reward (every 5 days)
             if (newStreak > 0 && newStreak % 5 === 0 && STREAK_REWARDS[newStreak]) {
@@ -172,12 +181,12 @@ export const challengeService = {
             // Update stats
             const updates = {
                 user_id: userId,
-                total_xp: currentXp + xpEarned,
+                total_xp: newTotalXp,
+                monthly_xp: newMonthlyXp,
                 current_streak: newStreak,
                 longest_streak: Math.max(newStreak, longestStreak),
                 last_challenge_date: new Date().toISOString(),
                 last_wrong_attempt_at: null, // Clear wrong attempt on success
-                tier: this.calculateTier(currentXp + xpEarned),
                 updated_at: new Date().toISOString()
             };
 
@@ -193,17 +202,24 @@ export const challengeService = {
                 console.error("Error adding credits:", addCreditsError);
             }
         } else {
-            // Wrong answer - set cooldown
+            // Wrong answer - deduct XP (minimum 0) and set cooldown
+            xpEarned = XP_WRONG;
+            newTotalXp = Math.max(0, currentXp + xpEarned);
+            newMonthlyXp = Math.max(0, currentMonthlyXp + xpEarned);
+            
             await supabase.from('user_stats').upsert({
                 user_id: userId,
-                total_xp: currentXp,
-                current_streak: currentStreak,
+                total_xp: newTotalXp,
+                monthly_xp: newMonthlyXp,
+                current_streak: currentStreak, // Don't reset streak on wrong answer
                 longest_streak: longestStreak,
                 last_wrong_attempt_at: new Date().toISOString(),
-                tier: this.calculateTier(currentXp),
                 updated_at: new Date().toISOString()
             });
         }
+
+        // Get new league based on total XP
+        const newLeague = this.calculateLeague(newTotalXp);
 
         // Calculate days to next 5-day milestone
         const nextMilestone = Math.ceil((newStreak + 1) / 5) * 5;
@@ -215,23 +231,45 @@ export const challengeService = {
             creditsEarned,
             newStreak,
             streakReward,
-            daysToNextReward
+            daysToNextReward,
+            newLeague
         };
     },
 
-    calculateTier(xp: number): string {
-        if (xp >= 5000) return 'Diamond';
-        if (xp >= 3000) return 'Platinum';
-        if (xp >= 1500) return 'Gold';
+    calculateLeague(xp: number): string {
+        if (xp >= 3500) return 'Master';
+        if (xp >= 3000) return 'Diamond';
+        if (xp >= 2500) return 'Platinum';
+        if (xp >= 2000) return 'Gold';
         if (xp >= 500) return 'Silver';
         return 'Bronze';
     },
 
+    async getLeagues(): Promise<League[]> {
+        const { data, error } = await supabase
+            .from('leagues')
+            .select('*')
+            .order('rank_order', { ascending: true });
+
+        if (error) {
+            console.error("Error fetching leagues:", error);
+            return [];
+        }
+
+        return data.map((league: any) => ({
+            name: league.name,
+            min_xp: league.min_xp,
+            max_xp: league.max_xp,
+            rank_order: league.rank_order
+        }));
+    },
+
     async getLeaderboard(): Promise<LeaderboardEntry[]> {
+        // Leaderboard is based on monthly_xp
         const { data, error } = await supabase
             .from('user_stats')
             .select(`
-                total_xp,
+                monthly_xp,
                 current_streak,
                 profiles (
                     id,
@@ -239,7 +277,7 @@ export const challengeService = {
                     avatar_url
                 )
             `)
-            .order('total_xp', { ascending: false })
+            .order('monthly_xp', { ascending: false })
             .limit(10);
 
         if (error) {
@@ -255,7 +293,7 @@ export const challengeService = {
                 user_id: entry.profiles?.id || '',
                 first_name: firstName,
                 avatar_url: entry.profiles?.avatar_url,
-                total_xp: entry.total_xp,
+                monthly_xp: entry.monthly_xp || 0,
                 current_streak: entry.current_streak,
                 rank: index + 1
             };
@@ -274,9 +312,10 @@ export const challengeService = {
             await supabase.from('user_stats').insert({ user_id: userId });
             return {
                 total_xp: 0,
+                monthly_xp: 0,
                 current_streak: 0,
                 longest_streak: 0,
-                tier: 'Bronze',
+                league: 'Bronze',
                 last_challenge_date: null,
                 last_wrong_attempt_at: null
             };
@@ -284,34 +323,12 @@ export const challengeService = {
 
         const statsData = data as any;
 
-        // Check for monthly reset
-        if (statsData?.last_challenge_date) {
-            const lastDate = new Date(statsData.last_challenge_date);
-            const today = new Date();
-            
-            if (lastDate.getMonth() !== today.getMonth()) {
-                // Reset streak for new month
-                await supabase.from('user_stats').update({
-                    current_streak: 0,
-                    updated_at: new Date().toISOString()
-                }).eq('user_id', userId);
-                
-                return {
-                    total_xp: statsData.total_xp || 0,
-                    current_streak: 0,
-                    longest_streak: statsData.longest_streak || 0,
-                    tier: statsData.tier || 'Bronze',
-                    last_challenge_date: statsData.last_challenge_date,
-                    last_wrong_attempt_at: statsData.last_wrong_attempt_at || null
-                };
-            }
-        }
-
         return {
             total_xp: statsData?.total_xp || 0,
+            monthly_xp: statsData?.monthly_xp || 0,
             current_streak: statsData?.current_streak || 0,
             longest_streak: statsData?.longest_streak || 0,
-            tier: statsData?.tier || 'Bronze',
+            league: this.calculateLeague(statsData?.total_xp || 0),
             last_challenge_date: statsData?.last_challenge_date || null,
             last_wrong_attempt_at: statsData?.last_wrong_attempt_at || null
         };
