@@ -29,7 +29,6 @@ export const moduleService = {
     },
 
     async unlockModule(moduleId: string, userId: string, cost: number): Promise<void> {
-<<<<<<< Updated upstream
         // 1. Deduct credits using secure RPC function (handles validation & transaction logging)
         const { error: deductError } = await supabase.rpc('deduct_credits', {
             amount: cost,
@@ -42,15 +41,6 @@ export const moduleService = {
             }
             throw deductError;
         }
-=======
-        // 1. Call RPC to deduct credits
-        const { error: rpcError } = await supabase.rpc('deduct_credits' as any, {
-            amount: cost,
-            reason: 'Unlocked module'
-        });
-
-        if (rpcError) throw rpcError;
->>>>>>> Stashed changes
 
         // 2. Create unlock record
         const { error: unlockError } = await supabase
@@ -62,15 +52,7 @@ export const moduleService = {
                 completion_percentage: 0,
             });
 
-<<<<<<< Updated upstream
         if (unlockError) throw unlockError;
-=======
-        if (unlockError) {
-            // If unlock fails, we should ideally refund, but for now let's just throw
-            console.error("Unlock failed after payment", unlockError);
-            throw unlockError;
-        }
->>>>>>> Stashed changes
     },
 
     async getModuleDetails(moduleId: string) {
@@ -127,7 +109,6 @@ export const moduleService = {
     async unlockLesson(lessonId: string, userId: string): Promise<void> {
         const COST = 2;
 
-<<<<<<< Updated upstream
         // 1. Deduct credits using secure RPC function (handles validation & transaction logging)
         const { error: deductError } = await supabase.rpc('deduct_credits', {
             amount: COST,
@@ -140,15 +121,6 @@ export const moduleService = {
             }
             throw deductError;
         }
-=======
-        // 1. Call RPC to deduct credits
-        const { error: rpcError } = await supabase.rpc('deduct_credits' as any, {
-            amount: COST,
-            reason: 'Unlocked lesson'
-        });
-
-        if (rpcError) throw rpcError;
->>>>>>> Stashed changes
 
         // 2. Unlock lesson
         const { error: unlockError } = await supabase
