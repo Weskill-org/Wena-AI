@@ -305,7 +305,7 @@ export default function Wallet() {
                 </button>
               </div>
             </div>
-            
+
             {/* Decorative */}
             <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
           </motion.div>
@@ -367,9 +367,8 @@ export default function Wallet() {
                     className="glass border border-border rounded-2xl p-3 flex justify-between items-center"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                        tx.type === "earned" ? "bg-accent/20" : "bg-destructive/20"
-                      }`}>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${tx.type === "earned" ? "bg-accent/20" : "bg-destructive/20"
+                        }`}>
                         {tx.type === "earned" ? (
                           <TrendingUp className="w-4 h-4 text-accent" />
                         ) : (
@@ -383,10 +382,9 @@ export default function Wallet() {
                         </div>
                       </div>
                     </div>
-                    <div className={`text-base font-bold ${
-                      tx.type === "earned" ? "text-accent" : "text-destructive"
-                    }`}>
-                      {tx.amount > 0 ? "+" : ""}{tx.amount}
+                    <div className={`text-base font-bold ${tx.type === "earned" ? "text-accent" : "text-destructive"
+                      }`}>
+                      {tx.type === "earned" ? "+" : "-"}{Math.abs(tx.amount)}
                     </div>
                   </motion.div>
                 ))}
@@ -528,7 +526,7 @@ export default function Wallet() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+      </div >
     </>
   );
 }
