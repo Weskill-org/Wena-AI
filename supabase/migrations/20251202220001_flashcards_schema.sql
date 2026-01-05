@@ -38,11 +38,17 @@ alter table public.flashcard_questions enable row level security;
 alter table public.flashcard_responses enable row level security;
 
 -- RLS Policies for flashcard_questions (Public read, Admin write - assuming no admin role for now, so public read only)
+drop policy if exists "Enable read access for all users" on public.flashcard_questions;
 create policy "Enable read access for all users" on public.flashcard_questions for select using (true);
 
 -- RLS Policies for flashcard_responses
+drop policy if exists "Users can view their own responses" on public.flashcard_responses;
 create policy "Users can view their own responses" on public.flashcard_responses for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their own responses" on public.flashcard_responses;
 create policy "Users can insert their own responses" on public.flashcard_responses for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update their own responses" on public.flashcard_responses;
 create policy "Users can update their own responses" on public.flashcard_responses for update using (auth.uid() = user_id);
 
 -- Seed Data for Questions

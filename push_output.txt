@@ -1,0 +1,26 @@
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • 20251201220000_add_unlocked_to_lesson_progress.sql
+ • 20251202220000_daily_challenges.sql
+ • 20251202220001_flashcards_schema.sql
+ • 20251212220000_ai_credit_deduction.sql
+ • 20251212220001_enable_lesson_updates.sql
+ • 20251212220002_fix_challenge_rls.sql
+ • 20251212220003_referral_update.sql
+ • 20251216220000_auto_create_ai_persona.sql
+ • 20251221220000_referral_verification.sql
+ • 20251224184111_83656fa8-c35b-41ae-943e-be89a1350c39.sql
+ • 20251226225614_dd0cd680-13e2-4ef4-87bb-058bd4618484.sql
+ • 20251226232604_42b2b571-f7f9-4166-b7f2-c1a71f8305fe.sql
+ • 20251226235910_cc4299fa-c9fe-437c-b973-b357fbba5c56.sql
+ • 20260105120000_fix_wallet.sql
+ • 20260106220000_daily_flashcard_limits.sql
+
+ [Y/n] Y
+Applying migration 20251201220000_add_unlocked_to_lesson_progress.sql...
+ERROR: column "unlocked" of relation "user_lesson_progress" already exists (SQLSTATE 42701)
+At statement: 0                                                                            
+-- Add unlocked column to user_lesson_progress                                             
+alter table public.user_lesson_progress                                                    
+add column unlocked boolean default false not null                                         
+Try rerunning the command with --debug to troubleshoot the error.

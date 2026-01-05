@@ -16,7 +16,8 @@ serve(async (req) => {
     const { message, model: modelName, mode, debug_user_id } = await req.json();
 
     // Default to global key
-    let apiKey = Deno.env.get('VITE_GEMINI_API_KEY');
+    const globalKey = Deno.env.get('VITE_GEMINI_API_KEY');
+    let individualKey: string | null = null;
 
     // Attempt to fetch user-specific key
     try {
@@ -37,23 +38,33 @@ serve(async (req) => {
 
         if (profile?.individual_gemini_key) {
           console.log('Using individual API key for debug user:', debug_user_id);
-          apiKey = profile.individual_gemini_key;
+          individualKey = profile.individual_gemini_key;
         }
       }
 
       // Standard Auth Flow
       const authHeader = req.headers.get('Authorization');
-      if (authHeader && !apiKey) { // Only check if we haven't found a key yet
+
+      // Always check for individual key if user is authenticated, regardless of global key presence
+      if (authHeader && !individualKey) {
         const supabaseClient = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-          { global: { headers: { Authorization: authHeader } } }
+          {
+            global: { headers: { Authorization: authHeader } },
+            auth: { persistSession: false } // CRITICAL: Disable session persistence for Edge Functions
+          }
         );
 
-        const { data: { user } } = await supabaseClient.auth.getUser();
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+
+        if (userError) {
+          console.warn('User Error:', userError);
+        }
 
         if (user) {
-          const { data: profile } = await supabaseClient
+          const { data: profile, error: profileError } = await supabaseClient
             .from('profiles')
             .select('individual_gemini_key')
             .eq('id', user.id)
@@ -61,13 +72,16 @@ serve(async (req) => {
 
           if (profile?.individual_gemini_key) {
             console.log('Using individual API key for user:', user.id);
-            apiKey = profile.individual_gemini_key;
+            individualKey = profile.individual_gemini_key;
           }
         }
       }
     } catch (err) {
       console.warn('Failed to fetch individual key, falling back to global:', err);
     }
+
+    // Prioritize individual key, fallback to global
+    const apiKey = individualKey || globalKey;
 
     if (!apiKey) {
       throw new Error('Gemini API key not configured (neither globally nor individually).');
@@ -76,7 +90,7 @@ serve(async (req) => {
     // Mode 1: Retrieve Key (For Client-side WebSocket/Live API)
     if (mode === 'get_key') {
       return new Response(
-        JSON.stringify({ apiKey }),
+        JSON.stringify({ apiKey: btoa(apiKey) }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

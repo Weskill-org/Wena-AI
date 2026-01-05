@@ -7,6 +7,7 @@ create policy "Enable insert for authenticated users" on public.daily_challenges
 
 -- 2. Allow users to insert their own stats row
 -- This is required for the 'upsert' operation if the user_stats row doesn't exist yet
+drop policy if exists "Users can insert their own stats" on public.user_stats;
 create policy "Users can insert their own stats" on public.user_stats for insert with check (auth.uid() = user_id);
 
 -- 3. Ensure users can update their own stats (already exists, but good to double check safety)

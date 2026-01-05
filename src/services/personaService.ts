@@ -11,6 +11,71 @@ export interface FlashcardQuestion {
 }
 
 export const personaService = {
+    async checkAndResetDailyLimit(userId: string): Promise<number> {
+        // Calculate today's date in IST (UTC+5:30)
+        const now = new Date();
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const istDate = new Date(now.getTime() + istOffset);
+        const todayStr = istDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+        // Fetch current limit
+        // @ts-ignore
+        const { data, error } = await supabase
+            .from('daily_flashcard_limits')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (error) {
+            console.error("Error fetching daily limit:", error);
+            return 10; // Default if table missing
+        }
+
+        if (!data) {
+            // Create new record
+            // @ts-ignore
+            const { error: insertError } = await supabase
+                .from('daily_flashcard_limits')
+                .insert({
+                    user_id: userId,
+                    remaining_questions: 10,
+                    last_reset_date: todayStr
+                });
+
+            if (insertError) console.error("Error creating daily limit:", insertError);
+            return 10;
+        }
+
+        // Check if reset is needed
+        if (data.last_reset_date !== todayStr) {
+            console.log("Resetting daily limit for new day (IST):", todayStr);
+            // @ts-ignore
+            const { error: updateError } = await supabase
+                .from('daily_flashcard_limits')
+                .update({
+                    remaining_questions: 10,
+                    last_reset_date: todayStr
+                })
+                .eq('user_id', userId);
+
+            if (updateError) console.error("Error resetting daily limit:", updateError);
+            return 10;
+        }
+
+        return data.remaining_questions;
+    },
+
+    async decrementDailyLimit(userId: string) {
+        const current = await this.checkAndResetDailyLimit(userId);
+        if (current > 0) {
+            // @ts-ignore
+            await supabase
+                .from('daily_flashcard_limits')
+                .update({ remaining_questions: current - 1 })
+                .eq('user_id', userId);
+        }
+    },
+
     async getPersona(userId: string) {
         const { data, error } = await supabase
             .from('ai_personas')
@@ -69,7 +134,7 @@ export const personaService = {
         `;
 
         try {
-            const responseText = await sendMessageToGemini(prompt);
+            const responseText = await sendMessageToGemini(prompt, "gemini-2.5-flash");
             const cleanedResponse = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
             const questions = JSON.parse(cleanedResponse);
 
@@ -136,6 +201,53 @@ export const personaService = {
         }
     },
 
+    async generateSingleDynamicQuestion(userId: string): Promise<FlashcardQuestion | null> {
+        console.log("Generating single dynamic AI question...");
+        const persona = await this.getPersona(userId);
+        const currentPersona = persona?.details || {};
+
+        const prompt = `
+            You are best AI Persona Developer (as a teacher) and will dig down to know more relevent questiones to personalise education. 
+            Your work is to get more questions in MCQ/One Liner Formats.
+            
+            Based on the following user persona details: ${JSON.stringify(currentPersona)},
+            generate 1 new, engaging flashcard question to learn more about the user.
+            Focus on gathering information like interests, goals, learning style, and background.
+            Do not ask questions that are already answered in the persona details.
+            
+            Return the response ONLY as a valid JSON object (NOT an array) with the following structure:
+            {
+                "question_text": "Question string",
+                "field_key": "unique_key_for_db",
+                "category": "Category (e.g., Personal, Education, Goals, Fun)",
+                "input_type": "text" (or "select" if applicable),
+                "options": ["Option 1", "Option 2"] (only if input_type is select)
+            }
+        `;
+
+        try {
+            const responseText = await sendMessageToGemini(prompt, "gemini-2.5-flash");
+            const cleanedResponse = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const q = JSON.parse(cleanedResponse);
+
+            // Construct FlashcardQuestion object with dynamic ID
+            const dynamicQuestion: FlashcardQuestion = {
+                id: `dynamic-${Date.now()}`,
+                question_text: q.question_text,
+                field_key: q.field_key,
+                category: q.category,
+                input_type: q.input_type || 'text',
+                options: q.options
+            };
+
+            return dynamicQuestion;
+
+        } catch (error) {
+            console.error("Error generating AI question:", error);
+            return null;
+        }
+    },
+
     async getDailyQuestions(userId: string): Promise<FlashcardQuestion[]> {
         console.log("Fetching daily questions for user:", userId);
 
@@ -154,6 +266,22 @@ export const personaService = {
 
         if (todayResponses && todayResponses.length >= 3) {
             console.log("User has already answered 3 questions today.");
+            // Even if quota is full, we might want to return empty here and let the UI decide if it wants to request "Extra" questions.
+            // But based on current logic, returning empty triggers "Completed".
+            // The requirement says "If questions are already answered, Generate dynamic question".
+            // If we strictly follow daily limit, we stop.
+            // If we interpret the user request as "Keep going", we should return a dynamic question?
+            // "Flashcard will generate relevent persona Questions... we will not save these ai questions". 
+            // It seems like an unlimited mode or at least a fallback.
+            // For now, I will return empty array to respect the "Daily" limit of saved questions. 
+            // BUT, if the user explicitly wants to generate dynamic questions when "questions are already answered",
+            // maybe they mean "Valid Backend Questions are answered".
+
+            // Let's stick to:
+            // 1. Return backend questions if available.
+            // 2. If NO backend questions, return ONE dynamic question (even if daily limit of 3 is met? No, limit is for interactions).
+            // Actually, if I don't save responses, the limit doesn't apply to dynamic Qs.
+            // So effectively, once backend Qs are done, we can serve infinite dynamic Qs.
             return [];
         }
 
@@ -178,45 +306,43 @@ export const personaService = {
         const answeredQuestionIds = new Set(allResponses?.map((r: any) => r.question_id));
         const unansweredQuestions = (allQuestions as any[] || []).filter(q => !answeredQuestionIds.has(q.id));
 
-        // 4. If we have enough existing questions, return them
-        if (unansweredQuestions.length >= remainingQuota) {
-            return unansweredQuestions.slice(0, remainingQuota).map(q => ({
-                ...q,
-                options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : undefined
-            }));
-        }
+        // 4. Return up to remainingQuota backend questions
+        // We do NOT generate AI questions here to fill the batch anymore.
+        // We let the frontend ask for dynamic questions one by one if this list runs out.
+        // Wait, if I change this, `Flashcards.tsx` needs to know when to ask for dynamic.
+        // If I return fewer than `remainingQuota`, the frontend will finish them and then... stop?
+        // I need to update `Flashcards.tsx` to handle "fetch more".
 
-        // 5. If not enough, generate AI questions
-        console.log("Not enough questions, generating AI questions...");
-        const persona = await this.getPersona(userId);
-        const aiQuestions = await this.generateAIQuestions(userId, persona?.details || {});
-
-        const combinedQuestions = [...unansweredQuestions, ...aiQuestions];
-
-        return combinedQuestions.slice(0, remainingQuota).map(q => ({
+        return unansweredQuestions.slice(0, remainingQuota).map(q => ({
             ...q,
             options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : undefined
         }));
     },
 
     async submitFlashcardResponse(userId: string, questionId: string, response: string, fieldKey: string) {
-        // 1. Save response
-        // @ts-ignore
-        const { error: rError } = await supabase
-            .from('flashcard_responses')
-            .insert({
-                user_id: userId,
-                question_id: questionId,
-                response: response
-            });
+        // 1. Save response ONLY if it's not a dynamic question
+        if (!questionId.startsWith('dynamic-')) {
+            // @ts-ignore
+            const { error: rError } = await supabase
+                .from('flashcard_responses')
+                .insert({
+                    user_id: userId,
+                    question_id: questionId,
+                    response: response
+                });
 
-        if (rError) throw rError;
+            if (rError) throw rError;
+        } else {
+            console.log("Skipping DB save for dynamic question response");
+        }
 
-        // 2. Update persona details (JSON)
+        // 2. Decrement Daily Limit
+        await this.decrementDailyLimit(userId);
+
+        // 3. Update persona details (JSON)
         await this.updatePersona(userId, { [fieldKey]: response });
 
-        // 3. Update AI Persona Text
-        // Use formatted field_key as the key/label instead of full question text
+        // 4. Update AI Persona Text
         const formattedKey = fieldKey
             .split('_')
             .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
@@ -229,18 +355,8 @@ export const personaService = {
     },
 
     async getTodayProgress(userId: string) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        // @ts-ignore
-        const { count, error } = await supabase
-            .from('flashcard_responses')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .gte('answered_at', today.toISOString());
-
-        if (error) throw error;
-        return count || 0;
+        // We return the remaining count directly, so UI logic will change to "remaining > 0"
+        return this.checkAndResetDailyLimit(userId);
     }
 };
 

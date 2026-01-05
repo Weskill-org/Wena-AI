@@ -118,7 +118,17 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     return;
                 }
 
-                const apiKey = data.apiKey;
+                console.log("Raw API Key from server:", data.apiKey); // DEBUG
+                let apiKey;
+                try {
+                    apiKey = atob(data.apiKey);
+                    console.log("Decoded API Key (first 5 chars):", apiKey.substring(0, 5)); // DEBUG
+                } catch (e) {
+                    console.error("Failed to decode API key:", e);
+                    setError("Failed to decode configuration.");
+                    setIsLoading(false);
+                    return;
+                }
 
                 // Construct system instruction with user persona context
                 const roleInstruction = ROLES[selectedRole];

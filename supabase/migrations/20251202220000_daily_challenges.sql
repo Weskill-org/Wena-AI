@@ -42,16 +42,27 @@ alter table public.user_stats enable row level security;
 alter table public.user_challenge_attempts enable row level security;
 
 -- Policies for daily_challenges (Read public, Write service role/admin)
+drop policy if exists "Enable read access for all users" on public.daily_challenges;
 create policy "Enable read access for all users" on public.daily_challenges for select using (true);
+
+drop policy if exists "Enable insert for service role" on public.daily_challenges;
 create policy "Enable insert for service role" on public.daily_challenges for insert with check (true); 
 
 -- Policies for user_stats
+drop policy if exists "Users can view all stats (for leaderboard)" on public.user_stats;
 create policy "Users can view all stats (for leaderboard)" on public.user_stats for select using (true);
+
+drop policy if exists "Users can update their own stats" on public.user_stats;
 create policy "Users can update their own stats" on public.user_stats for update using (auth.uid() = user_id);
+
+drop policy if exists "Service role can manage stats" on public.user_stats;
 create policy "Service role can manage stats" on public.user_stats for all using (true);
 
 -- Policies for user_challenge_attempts
+drop policy if exists "Users can view their own attempts" on public.user_challenge_attempts;
 create policy "Users can view their own attempts" on public.user_challenge_attempts for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their own attempts" on public.user_challenge_attempts;
 create policy "Users can insert their own attempts" on public.user_challenge_attempts for insert with check (auth.uid() = user_id);
 
 -- Indexes

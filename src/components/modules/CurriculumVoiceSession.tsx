@@ -43,7 +43,16 @@ const CurriculumVoiceSession: React.FC<CurriculumVoiceSessionProps> = ({ moduleT
                 return;
             }
 
-            const apiKey = data.apiKey;
+            console.log("Raw API Key from server:", data.apiKey); // DEBUG
+            let apiKey;
+            try {
+                apiKey = atob(data.apiKey);
+                console.log("Decoded API Key (first 5 chars):", apiKey.substring(0, 5)); // DEBUG
+            } catch (e) {
+                console.error("Failed to decode API key:", e);
+                setError("Failed to decode configuration.");
+                return;
+            }
 
             const systemInstruction = `You are a Curriculum Guide for the learning module "${moduleTitle}". The user's persona is "${persona}". Your goal is to ask 2-3 relevant questions to understand their specific needs and tailor the first lesson. Be concise, friendly, and focused. Do not lecture; just gather information to personalize the learning experience.`;
 

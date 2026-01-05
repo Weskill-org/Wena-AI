@@ -1,0 +1,41 @@
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • 20251130210941_11406da0-1b0a-4b3e-9128-fec5eee8c825.sql
+ • 20251212220003_referral_update.sql
+ • 20251216220000_auto_create_ai_persona.sql
+ • 20251221220000_referral_verification.sql
+ • 20251224184111_83656fa8-c35b-41ae-943e-be89a1350c39.sql
+ • 20251226225614_dd0cd680-13e2-4ef4-87bb-058bd4618484.sql
+ • 20251226232604_42b2b571-f7f9-4166-b7f2-c1a71f8305fe.sql
+ • 20251226235910_cc4299fa-c9fe-437c-b973-b357fbba5c56.sql
+ • 20260105120000_fix_wallet.sql
+ • 20260106220000_daily_flashcard_limits.sql
+
+ [Y/n] Y
+Applying migration 20251130210941_11406da0-1b0a-4b3e-9128-fec5eee8c825.sql...
+NOTICE (00000): policy "Users can view available coupon codes" for relation "public.coupon_codes" does not exist, skipping
+NOTICE (00000): policy "Users can view their own referral code" for relation "public.referral_codes" does not exist, skipping
+NOTICE (00000): policy "Users can view all referral codes for validation" for relation "public.referral_codes" does not exist, skipping
+NOTICE (00000): policy "Users can insert their own referral code" for relation "public.referral_codes" does not exist, skipping
+NOTICE (00000): policy "Users can update their own referral code" for relation "public.referral_codes" does not exist, skipping
+NOTICE (00000): policy "Users can view active discount codes" for relation "public.discount_codes" does not exist, skipping
+NOTICE (00000): policy "Users can view their own payment orders" for relation "public.payment_orders" does not exist, skipping
+NOTICE (00000): policy "Users can insert their own payment orders" for relation "public.payment_orders" does not exist, skipping
+NOTICE (00000): policy "Users can update their own payment orders" for relation "public.payment_orders" does not exist, skipping
+Applying migration 20251212220003_referral_update.sql...
+Applying migration 20251216220000_auto_create_ai_persona.sql...
+NOTICE (00000): trigger "on_profile_created" for relation "public.profiles" does not exist, skipping
+Applying migration 20251221220000_referral_verification.sql...
+NOTICE (00000): trigger "on_email_verified" for relation "auth.users" does not exist, skipping
+Applying migration 20251224184111_83656fa8-c35b-41ae-943e-be89a1350c39.sql...
+Applying migration 20251226225614_dd0cd680-13e2-4ef4-87bb-058bd4618484.sql...
+NOTICE (00000): table "debug_logs" does not exist, skipping
+Applying migration 20251226232604_42b2b571-f7f9-4166-b7f2-c1a71f8305fe.sql...
+Applying migration 20251226235910_cc4299fa-c9fe-437c-b973-b357fbba5c56.sql...
+Applying migration 20260105120000_fix_wallet.sql...
+Applying migration 20260106220000_daily_flashcard_limits.sql...
+NOTICE (00000): policy "Users can update their own limits" for relation "public.daily_flashcard_limits" does not exist, skipping
+NOTICE (00000): policy "Users can insert their own limits" for relation "public.daily_flashcard_limits" does not exist, skipping
+Finished supabase db push.
+A new version of Supabase CLI is available: v2.67.1 (currently installed v2.65.5)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

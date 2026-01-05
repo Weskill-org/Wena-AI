@@ -76,7 +76,7 @@ export const challengeService = {
             const responseText = await sendMessageToGemini(prompt, "gemini-2.5-flash");
             const cleanedResponse = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
             const challengeData = JSON.parse(cleanedResponse);
-            
+
             return {
                 question: challengeData.question,
                 options: challengeData.options,
@@ -123,7 +123,7 @@ export const challengeService = {
             const wrongAttemptTime = new Date(lastWrongAttempt);
             const now = new Date();
             const diffMinutes = (now.getTime() - wrongAttemptTime.getTime()) / (1000 * 60);
-            
+
             if (diffMinutes < 60) {
                 const waitMinutes = Math.ceil(60 - diffMinutes);
                 return { canAttempt: false, reason: 'cooldown', waitMinutes };
@@ -144,7 +144,7 @@ export const challengeService = {
         newLeague: string;
     }> {
         const isCorrect = selectedAnswer === correctAnswer;
-        
+
         // Get current stats
         const { data: stats } = await supabase
             .from('user_stats')
@@ -197,7 +197,7 @@ export const challengeService = {
                 amount: creditsEarned,
                 transaction_label: streakReward ? `Challenge reward + ${newStreak}-day streak bonus` : 'Challenge reward'
             });
-            
+
             if (addCreditsError) {
                 console.error("Error adding credits:", addCreditsError);
             }
@@ -206,7 +206,7 @@ export const challengeService = {
             xpEarned = XP_WRONG;
             newTotalXp = Math.max(0, currentXp + xpEarned);
             newMonthlyXp = Math.max(0, currentMonthlyXp + xpEarned);
-            
+
             await supabase.from('user_stats').upsert({
                 user_id: userId,
                 total_xp: newTotalXp,
@@ -288,7 +288,7 @@ export const challengeService = {
         return data.map((entry: any, index: number) => {
             const fullName = entry.profiles?.full_name || 'Anonymous';
             const firstName = fullName.split(' ')[0]; // Only first name
-            
+
             return {
                 user_id: entry.profiles?.id || '',
                 first_name: firstName,

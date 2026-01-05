@@ -16,8 +16,12 @@ export default function Flashcards() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [generating, setGenerating] = useState(false); // New state for AI generation
     const [answer, setAnswer] = useState("");
     const [completed, setCompleted] = useState(false);
+    const [remainingQuestions, setRemainingQuestions] = useState(0);
+    const [sessionCount, setSessionCount] = useState(0); // Track answers in this session
+    const [initialDbCount, setInitialDbCount] = useState(0); // Track initial DB answers
 
     useEffect(() => {
         if (user?.id) {
@@ -28,16 +32,51 @@ export default function Flashcards() {
     const loadQuestions = async () => {
         try {
             setLoading(true);
+
+            // Get remaining questions count directly
+            const remaining = await personaService.getTodayProgress(user!.id);
+            setRemainingQuestions(remaining);
+            setInitialDbCount(10 - remaining);
+
             const data = await personaService.getDailyQuestions(user!.id);
-            setQuestions(data);
-            if (data.length === 0) {
-                setCompleted(true);
+
+            // If we have questions, set them
+            if (data.length > 0) {
+                setQuestions(data);
+            } else {
+                // No backend questions. Check if we have strict limit remaining.
+                if (remaining > 0) {
+                    await generateAndAddQuestion(data);
+                } else {
+                    setCompleted(true);
+                }
             }
         } catch (error) {
             console.error("Error loading questions:", error);
             toast.error("Failed to load flashcards");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const generateAndAddQuestion = async (currentQuestions: FlashcardQuestion[]) => {
+        setGenerating(true);
+        try {
+            const dynamicQ = await personaService.generateSingleDynamicQuestion(user!.id);
+            if (dynamicQ) {
+                setQuestions([...currentQuestions, dynamicQ]);
+                return true;
+            } else {
+                // If generation fails and we have no questions, we are done
+                if (currentQuestions.length === 0) setCompleted(true);
+                return false;
+            }
+        } catch (error) {
+            console.error("Error generating question:", error);
+            toast.error("Failed to generate new question");
+            return false;
+        } finally {
+            setGenerating(false);
         }
     };
 
@@ -57,10 +96,27 @@ export default function Flashcards() {
             toast.success("Answer saved!");
             setAnswer("");
 
+            // Strictly decrement local state to reflect the action immediately
+            const newRemaining = remainingQuestions - 1;
+            setRemainingQuestions(newRemaining);
+            setSessionCount(prev => prev + 1);
+
+            // Logic to move next or finish
             if (currentIndex < questions.length - 1) {
                 setCurrentIndex(prev => prev + 1);
             } else {
-                setCompleted(true);
+                // We are at the end of the list.
+                // Check if we need more questions.
+
+                if (newRemaining > 0) {
+                    // Generate next dynamic question
+                    const success = await generateAndAddQuestion(questions);
+                    if (success) {
+                        setCurrentIndex(prev => prev + 1);
+                    }
+                } else {
+                    setCompleted(true);
+                }
             }
         } catch (error) {
             console.error("Error submitting answer:", error);
@@ -80,7 +136,19 @@ export default function Flashcards() {
         );
     }
 
-    if (!currentQuestion && !completed) {
+    // Special loading state for generation
+    if (generating && !currentQuestion) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="animate-pulse text-primary flex flex-col items-center gap-4">
+                    <Zap className="w-8 h-8 animate-spin" />
+                    <span>Generating a personalized question for you...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (!currentQuestion && !completed && !generating) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
                 <div className="text-center">
@@ -133,7 +201,7 @@ export default function Flashcards() {
                             </div>
                             <h2 className="text-2xl font-bold mb-2">All Caught Up!</h2>
                             <p className="text-muted-foreground mb-6">
-                                You've answered all your flashcards for today. Great job building your persona!
+                                You've answered all 10 flashcards for today. Great job building your persona!
                             </p>
                             <Button
                                 onClick={() => navigate('/')}
@@ -143,72 +211,85 @@ export default function Flashcards() {
                             </Button>
                         </motion.div>
                     ) : (
-                        <motion.div
-                            key={currentQuestion.id}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="bg-surface/50 backdrop-blur-lg border border-border rounded-3xl p-6 shadow-xl"
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <span className="text-sm font-medium text-muted-foreground">
-                                    Question {currentIndex + 1} of {questions.length}
-                                </span>
-                                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-bold">
-                                    <Zap className="w-3 h-3" />
-                                    {currentQuestion.category}
+                        generating ? (
+                            <motion.div
+                                key="generating"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="bg-surface/50 backdrop-blur-lg border border-border rounded-3xl p-6 shadow-xl flex flex-col items-center justify-center min-h-[300px]"
+                            >
+                                <Zap className="w-10 h-10 text-primary animate-pulse mb-4" />
+                                <p className="text-lg font-medium text-center">Thinking of a good question based on your last answer...</p>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key={currentQuestion.id}
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                className="bg-surface/50 backdrop-blur-lg border border-border rounded-3xl p-6 shadow-xl"
+                            >
+                                <div className="flex items-center justify-between mb-6">
+                                    <span className="text-sm font-medium text-muted-foreground">
+                                        Remaining: {remainingQuestions} / 10
+                                    </span>
+                                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-bold">
+                                        <Zap className="w-3 h-3" />
+                                        {currentQuestion.category}
+                                    </div>
                                 </div>
-                            </div>
 
-                            <h2 className="text-xl font-semibold mb-8 leading-relaxed">
-                                {currentQuestion.question_text}
-                            </h2>
+                                <h2 className="text-xl font-semibold mb-8 leading-relaxed">
+                                    {currentQuestion.question_text}
+                                </h2>
 
-                            <div className="space-y-6">
-                                {currentQuestion.input_type === 'select' && currentQuestion.options ? (
-                                    <Select value={answer} onValueChange={setAnswer}>
-                                        <SelectTrigger className="w-full h-12 bg-background/50 border-border">
-                                            <SelectValue placeholder="Select an option" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {currentQuestion.options.map((opt) => (
-                                                <SelectItem key={opt} value={opt}>
-                                                    {opt}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                ) : currentQuestion.input_type === 'date' ? (
-                                    <Input
-                                        type="date"
-                                        value={answer}
-                                        onChange={(e) => setAnswer(e.target.value)}
-                                        className="h-12 bg-background/50 border-border"
-                                    />
-                                ) : (
-                                    <Input
-                                        type="text"
-                                        placeholder="Type your answer here..."
-                                        value={answer}
-                                        onChange={(e) => setAnswer(e.target.value)}
-                                        className="h-12 bg-background/50 border-border"
-                                        autoFocus
-                                    />
-                                )}
-
-                                <Button
-                                    onClick={handleSubmit}
-                                    disabled={!answer || submitting}
-                                    className="w-full h-12 bg-primary hover:bg-primary/90 text-white text-lg"
-                                >
-                                    {submitting ? "Saving..." : (
-                                        <span className="flex items-center gap-2">
-                                            Next Question <ChevronRight className="w-5 h-5" />
-                                        </span>
+                                <div className="space-y-6">
+                                    {currentQuestion.input_type === 'select' && currentQuestion.options ? (
+                                        <Select value={answer} onValueChange={setAnswer}>
+                                            <SelectTrigger className="w-full h-12 bg-background/50 border-border">
+                                                <SelectValue placeholder="Select an option" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {currentQuestion.options.map((opt) => (
+                                                    <SelectItem key={opt} value={opt}>
+                                                        {opt}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    ) : currentQuestion.input_type === 'date' ? (
+                                        <Input
+                                            type="date"
+                                            value={answer}
+                                            onChange={(e) => setAnswer(e.target.value)}
+                                            className="h-12 bg-background/50 border-border"
+                                        />
+                                    ) : (
+                                        <Input
+                                            type="text"
+                                            placeholder="Type your answer here..."
+                                            value={answer}
+                                            onChange={(e) => setAnswer(e.target.value)}
+                                            className="h-12 bg-background/50 border-border"
+                                            autoFocus
+                                        />
                                     )}
-                                </Button>
-                            </div>
-                        </motion.div>
+
+                                    <Button
+                                        onClick={handleSubmit}
+                                        disabled={!answer || submitting}
+                                        className="w-full h-12 bg-primary hover:bg-primary/90 text-white text-lg"
+                                    >
+                                        {submitting ? "Saving..." : (
+                                            <span className="flex items-center gap-2">
+                                                Next Question <ChevronRight className="w-5 h-5" />
+                                            </span>
+                                        )}
+                                    </Button>
+                                </div>
+                            </motion.div>
+                        )
                     )}
                 </AnimatePresence>
             </div>

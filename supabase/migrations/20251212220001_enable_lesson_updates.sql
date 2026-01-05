@@ -2,6 +2,7 @@
 alter table "public"."lessons" enable row level security;
 
 -- Policy to allow users to update lessons if they own the module
+drop policy if exists "Users can update lessons of their own modules" on "public"."lessons";
 create policy "Users can update lessons of their own modules"
 on "public"."lessons"
 for update

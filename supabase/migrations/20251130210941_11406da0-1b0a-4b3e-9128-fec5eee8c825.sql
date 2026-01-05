@@ -51,41 +51,50 @@ ALTER TABLE public.discount_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_orders ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for coupon_codes
+drop policy if exists "Users can view available coupon codes" on public.coupon_codes;
 CREATE POLICY "Users can view available coupon codes"
   ON public.coupon_codes FOR SELECT
   USING (auth.role() = 'authenticated');
 
 -- RLS Policies for referral_codes
+drop policy if exists "Users can view their own referral code" on public.referral_codes;
 CREATE POLICY "Users can view their own referral code"
   ON public.referral_codes FOR SELECT
   USING (auth.uid() = user_id);
 
+drop policy if exists "Users can view all referral codes for validation" on public.referral_codes;
 CREATE POLICY "Users can view all referral codes for validation"
   ON public.referral_codes FOR SELECT
   USING (auth.role() = 'authenticated');
 
+drop policy if exists "Users can insert their own referral code" on public.referral_codes;
 CREATE POLICY "Users can insert their own referral code"
   ON public.referral_codes FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+drop policy if exists "Users can update their own referral code" on public.referral_codes;
 CREATE POLICY "Users can update their own referral code"
   ON public.referral_codes FOR UPDATE
   USING (auth.uid() = user_id);
 
 -- RLS Policies for discount_codes
+drop policy if exists "Users can view active discount codes" on public.discount_codes;
 CREATE POLICY "Users can view active discount codes"
   ON public.discount_codes FOR SELECT
   USING (is_active = true);
 
 -- RLS Policies for payment_orders
+drop policy if exists "Users can view their own payment orders" on public.payment_orders;
 CREATE POLICY "Users can view their own payment orders"
   ON public.payment_orders FOR SELECT
   USING (auth.uid() = user_id);
 
+drop policy if exists "Users can insert their own payment orders" on public.payment_orders;
 CREATE POLICY "Users can insert their own payment orders"
   ON public.payment_orders FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+drop policy if exists "Users can update their own payment orders" on public.payment_orders;
 CREATE POLICY "Users can update their own payment orders"
   ON public.payment_orders FOR UPDATE
   USING (auth.uid() = user_id);
