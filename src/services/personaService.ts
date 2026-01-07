@@ -208,12 +208,12 @@ export const personaService = {
 
         const prompt = `
             You are best AI Persona Developer (as a teacher) and will dig down to know more relevent questiones to personalise education. 
-            Your work is to get more questions in MCQ/One Liner Formats.
+            Your work is to get more questions in MCQ Formats.
             
             Based on the following user persona details: ${JSON.stringify(currentPersona)},
-            generate 1 new, engaging flashcard question to learn more about the user.
-            Focus on gathering information like interests, goals, learning style, and background.
-            Do not ask questions that are already answered in the persona details.
+            generate 1 new, engaging flashcard question to learn more about the user. Make the question in very different aspects of the user rather than just sticking to the same aspect.
+            Focus on gathering information like interests, goals, learning style, family members and background.
+            Do not ask questions that are already answered in the persona details. If you see lot of answers of similar question, then try to ask a completely different questions.
             
             Return the response ONLY as a valid JSON object (NOT an array) with the following structure:
             {

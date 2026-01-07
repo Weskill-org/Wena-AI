@@ -150,8 +150,8 @@ export default function Dashboard() {
               <p className="text-xl font-bold text-accent">{wallet?.credits || 0}</p>
             </div>
           </div>
-          <GradientButton 
-            variant="accent" 
+          <GradientButton
+            variant="accent"
             onClick={(e) => {
               e.stopPropagation();
               navigate('/referral');
@@ -179,7 +179,7 @@ export default function Dashboard() {
               >
                 {action.label === "Flashcards" && (
                   <div className="absolute top-2 right-2 bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-full text-[10px] text-white font-medium">
-                    {flashcardProgress || 0}/3
+                    Remaining: {flashcardProgress || 0}/10
                   </div>
                 )}
                 <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -205,7 +205,7 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-semibold">Continue Learning</h2>
-            <button 
+            <button
               onClick={() => navigate('/modules')}
               className="text-xs text-primary font-medium flex items-center gap-1"
             >
@@ -259,7 +259,7 @@ export default function Dashboard() {
               <div className="glass border border-border rounded-2xl p-6 text-center">
                 <span className="text-3xl block mb-2">📖</span>
                 <p className="text-muted-foreground text-sm">No active modules</p>
-                <button 
+                <button
                   onClick={() => navigate('/modules')}
                   className="text-primary text-sm font-medium mt-2"
                 >
