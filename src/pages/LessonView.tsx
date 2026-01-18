@@ -24,6 +24,7 @@ export default function LessonView() {
     const [generating, setGenerating] = useState(false);
     const [completing, setCompleting] = useState(false);
     const [showQuiz, setShowQuiz] = useState(false);
+    const [nextLessonId, setNextLessonId] = useState<string | null>(null);
     const queryClient = useQueryClient();
     // user is already declared above
 
@@ -85,6 +86,12 @@ export default function LessonView() {
                 if (!data.content || (typeof data.content === 'string' && !data.content.startsWith('{'))) {
                     // Pass the existing content as summary if it exists
                     generateContent(data, typeof data.content === 'string' ? data.content : undefined);
+                }
+                // Check for next lesson
+                if (data.id && moduleId) {
+                    moduleService.getNextLesson(moduleId, data.id)
+                        .then(nextId => setNextLessonId(nextId))
+                        .catch(err => console.error("Error finding next lesson:", err));
                 }
             } catch (error) {
                 console.error("Error fetching lesson:", error);
@@ -247,20 +254,34 @@ export default function LessonView() {
             <div className="flex justify-between items-center mt-8">
                 {/* Removed Create Lesson Button */}
 
-                <Button
-                    size="lg"
-                    onClick={handleComplete}
-                    disabled={completing || lesson.progress?.completed}
-                    className={lesson.progress?.completed ? "bg-green-600 hover:bg-green-700 w-full md:w-auto" : "w-full md:w-auto"}
-                >
-                    {lesson.progress?.completed ? (
-                        <>
+                {lesson.progress?.completed && nextLessonId ? (
+                    <div className="flex w-full justify-between gap-4">
+                        <div className="flex items-center text-green-600 font-medium">
                             <CheckCircle className="w-5 h-5 mr-2" /> Completed
-                        </>
-                    ) : (
-                        "Mark as Complete"
-                    )}
-                </Button>
+                        </div>
+                        <Button
+                            className="flex-1 md:flex-none bg-primary text-primary-foreground hover:bg-primary/90"
+                            onClick={() => navigate(`/modules/${moduleId}/lessons/${nextLessonId}`)}
+                        >
+                            Next Lesson <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                        </Button>
+                    </div>
+                ) : (
+                    <Button
+                        size="lg"
+                        onClick={handleComplete}
+                        disabled={completing || lesson.progress?.completed}
+                        className={lesson.progress?.completed ? "bg-green-600 hover:bg-green-700 w-full md:w-auto" : "w-full md:w-auto"}
+                    >
+                        {lesson.progress?.completed ? (
+                            <>
+                                <CheckCircle className="w-5 h-5 mr-2" /> Completed
+                            </>
+                        ) : (
+                            "Mark as Complete"
+                        )}
+                    </Button>
+                )}
             </div>
         </div>
     );

@@ -302,5 +302,32 @@ export const moduleService = {
         }
 
         return createdModule;
+    },
+
+    async getNextLesson(moduleId: string, currentLessonId: string): Promise<string | null> {
+        const { data: chapters, error } = await supabase
+            .from("chapters" as any)
+            .select(`
+                order_index,
+                lessons (id, order_index)
+            `)
+            .eq("module_id", moduleId)
+            .order("order_index", { ascending: true });
+
+        if (error) return null;
+
+        const allLessons: string[] = [];
+        (chapters as any[]).forEach(chapter => {
+            if (chapter.lessons) {
+                const lessons = (chapter.lessons as any[]).sort((a, b) => a.order_index - b.order_index);
+                lessons.forEach(l => allLessons.push(l.id));
+            }
+        });
+
+        const currentIndex = allLessons.indexOf(currentLessonId);
+        if (currentIndex !== -1 && currentIndex < allLessons.length - 1) {
+            return allLessons[currentIndex + 1];
+        }
+        return null;
     }
 };
