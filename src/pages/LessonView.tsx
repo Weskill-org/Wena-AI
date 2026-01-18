@@ -9,17 +9,55 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import LessonQuiz from "@/components/modules/LessonQuiz";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import VoiceMode from "@/components/ui/VoiceMode";
+
+import { useAuth } from "@/hooks/useAuth";
 
 export default function LessonView() {
     const { moduleId, lessonId } = useParams<{ moduleId: string; lessonId: string }>();
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { user } = useAuth(); // Ensure we have user from hook
     const [lesson, setLesson] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [completing, setCompleting] = useState(false);
     const [showQuiz, setShowQuiz] = useState(false);
+    const queryClient = useQueryClient();
+    // user is already declared above
+
+    // --- Credit Logic (Moved to top) ---
+    const { data: wallet } = useQuery({
+        queryKey: ['wallet', user?.id],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('wallets')
+                .select('*')
+                .eq('user_id', user?.id)
+                .maybeSingle();
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!user?.id,
+    });
+
+    const credits = wallet?.credits || 0;
+
+    const deductUsageMutation = useMutation({
+        mutationFn: async () => {
+            if (!user?.id) return;
+            const { error } = await supabase.rpc('deduct_ai_credits', { amount: 1 });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['wallet'] });
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+        },
+        onError: (error) => {
+            console.error("Failed to deduct credit:", error);
+        }
+    });
 
     useEffect(() => {
         if (!lessonId) return;
@@ -146,6 +184,25 @@ export default function LessonView() {
     const { content } = lesson;
     const isStructured = content && typeof content === 'object' && content.text_content;
 
+
+
+    // Construct the Voice Mode prompt
+    const personalizationContext = sessionStorage.getItem(`curriculum_context_${moduleId}`);
+    const voiceInstruction = `
+        You are an expert AI tutor. Your goal is to teach the user about: "${lesson.title}".
+        Context: This lesson is part of the module "${lesson.chapter?.module?.title}" and chapter "${lesson.chapter?.title}".
+        ${personalizationContext ? `User Personalization Context: ${personalizationContext}` : ""}
+        
+        Start by introducing the topic and then guide the user through the key concepts interactively.
+        Explain concepts clearly, provide examples, and answer any questions the user might have.
+        Your goal is to ensure the user understands the material.
+        Keep your responses concise and conversational.
+    `;
+
+    const handleVoiceDeduct = () => {
+        deductUsageMutation.mutate();
+    };
+
     return (
         <div className="container mx-auto py-8 px-4 max-w-4xl pb-24">
             <Button variant="ghost" className="mb-6" onClick={() => navigate(`/modules/${moduleId}`)}>
@@ -161,64 +218,17 @@ export default function LessonView() {
                 </div>
             </div>
 
-            {/* Voice Mode Integration (Placeholder for now, can be expanded) */}
-            {/* <div className="mb-8 h-64 rounded-xl overflow-hidden">
-                 <VoiceMode onDeductCredit={() => {}} hasCredits={true} />
-            </div> */}
+            {/* Voice Mode Integration - Replaces Text Content */}
+            <div className="mb-8 h-[600px] rounded-xl overflow-hidden shadow-2xl border border-border">
+                <VoiceMode
+                    onDeductCredit={handleVoiceDeduct}
+                    hasCredits={credits > 0}
+                    customInstruction={voiceInstruction}
+                    modeName="AI Tutor"
+                />
+            </div>
 
-            <Card className="mb-8">
-                <CardContent className="pt-6">
-                    {generating ? (
-                        <div className="flex flex-col items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-                            <p className="text-muted-foreground">
-                                {typeof lesson.content === 'string' ? "AI Buddy is expading your lesson from the summary..." : "AI Buddy is writing your lesson..."}
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            {/* Image Placeholders */}
-                            {isStructured && content.image_prompts && content.image_prompts.length > 0 && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                    {content.image_prompts.map((prompt: string, i: number) => (
-                                        <div key={i} className="rounded-xl overflow-hidden shadow-lg border border-border group relative">
-                                            <img
-                                                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`}
-                                                alt={prompt}
-                                                className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
-                                                loading="lazy"
-                                            />
-                                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <p className="text-xs text-white line-clamp-2">{prompt}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <div className="prose prose-slate dark:prose-invert max-w-none">
-                                <ReactMarkdown>
-                                    {isStructured ? content.text_content : (typeof content === 'string' ? content : "No content available.")}
-                                </ReactMarkdown>
-                            </div>
-
-                            {/* Voice Script Section */}
-                            {isStructured && content.voice_script && (
-                                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 mt-6">
-                                    <h4 className="flex items-center text-blue-700 dark:text-blue-300 font-semibold mb-2">
-                                        <Volume2 className="w-4 h-4 mr-2" /> AI Tutor Script
-                                    </h4>
-                                    <p className="text-sm text-blue-800 dark:text-blue-200 italic">
-                                        "{content.voice_script}"
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Quiz Section */}
+            {/* Quiz Section - Keep this available manually */}
             {isStructured && content.quiz && content.quiz.length > 0 && (
                 <div className="mb-8">
                     {!showQuiz && !lesson.progress?.completed ? (
@@ -235,26 +245,22 @@ export default function LessonView() {
             )}
 
             <div className="flex justify-between items-center mt-8">
-                <Button variant="outline" onClick={() => generateContent(lesson)} disabled={generating}>
-                    <RefreshCw className="w-4 h-4 mr-2" /> Create my Lesson
-                </Button>
+                {/* Removed Create Lesson Button */}
 
-                {!isStructured && (
-                    <Button
-                        size="lg"
-                        onClick={handleComplete}
-                        disabled={completing || lesson.progress?.completed}
-                        className={lesson.progress?.completed ? "bg-green-600 hover:bg-green-700" : ""}
-                    >
-                        {lesson.progress?.completed ? (
-                            <>
-                                <CheckCircle className="w-5 h-5 mr-2" /> Completed
-                            </>
-                        ) : (
-                            "Mark as Complete"
-                        )}
-                    </Button>
-                )}
+                <Button
+                    size="lg"
+                    onClick={handleComplete}
+                    disabled={completing || lesson.progress?.completed}
+                    className={lesson.progress?.completed ? "bg-green-600 hover:bg-green-700 w-full md:w-auto" : "w-full md:w-auto"}
+                >
+                    {lesson.progress?.completed ? (
+                        <>
+                            <CheckCircle className="w-5 h-5 mr-2" /> Completed
+                        </>
+                    ) : (
+                        "Mark as Complete"
+                    )}
+                </Button>
             </div>
         </div>
     );

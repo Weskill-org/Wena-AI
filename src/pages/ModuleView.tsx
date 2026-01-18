@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, PlayCircle, CheckCircle, Lock, BookOpen, Unlock } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useToast } from "@/components/ui/use-toast";
-import CurriculumDriver from "@/components/modules/CurriculumDriver";
 import { useLocation } from "react-router-dom";
 import {
     AlertDialog,
@@ -29,7 +28,6 @@ export default function ModuleView() {
     const { user } = useAuth();
     const [moduleData, setModuleData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [showDriver, setShowDriver] = useState(false);
 
     // Unlock Dialog State
     const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
@@ -56,8 +54,9 @@ export default function ModuleView() {
     useEffect(() => {
         fetchDetails();
 
+
         if (location.state?.startCurriculum) {
-            setShowDriver(true);
+            // Driver removed as per request
             window.history.replaceState({}, document.title);
         }
     }, [moduleId]);
@@ -96,13 +95,7 @@ export default function ModuleView() {
         }
     };
 
-    const handleDriverComplete = () => {
-        setShowDriver(false);
-        toast({
-            title: "Curriculum Personalized",
-            description: "Your learning path has been updated.",
-        });
-    };
+
 
     const handleLessonClick = (lesson: any, isUnlocked: boolean) => {
         if (isUnlocked) {
@@ -243,13 +236,7 @@ export default function ModuleView() {
                 ))}
             </div>
 
-            <CurriculumDriver
-                isOpen={showDriver}
-                onClose={() => setShowDriver(false)}
-                onComplete={handleDriverComplete}
-                moduleTitle={module.title}
-                moduleId={moduleId}
-            />
+
 
             <AlertDialog open={unlockDialogOpen} onOpenChange={setUnlockDialogOpen}>
                 <AlertDialogContent>

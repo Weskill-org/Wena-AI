@@ -109,7 +109,9 @@ export default function Dashboard() {
             <div className="flex justify-between items-start mb-3">
               <div>
                 <h3 className="text-white/90 font-medium text-sm">Today's Progress</h3>
-                <p className="text-white text-3xl font-bold mt-1">68%</p>
+                <p className="text-white text-3xl font-bold mt-1">
+                  {Math.round(((10 - (flashcardProgress ?? 10)) / 10) * 100)}%
+                </p>
               </div>
               <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
                 <span className="text-2xl">🎯</span>
@@ -120,12 +122,16 @@ export default function Dashboard() {
             <div className="bg-white/20 rounded-full h-2 overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: "68%" }}
+                animate={{ width: `${Math.round(((10 - (flashcardProgress ?? 10)) / 10) * 100)}%` }}
                 transition={{ delay: 0.5, duration: 1, ease: "easeOut" }}
                 className="bg-white h-full rounded-full"
               />
             </div>
-            <p className="text-white/70 text-xs mt-2">Keep up the great work!</p>
+            <p className="text-white/70 text-xs mt-2">
+              {Math.round(((10 - (flashcardProgress ?? 10)) / 10) * 100) === 100
+                ? "Daily goal completed, amazing!"
+                : "Keep up the great work!"}
+            </p>
           </div>
 
           {/* Decorative Elements */}

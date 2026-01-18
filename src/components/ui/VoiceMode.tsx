@@ -8,6 +8,8 @@ interface VoiceModeProps {
     onDeductCredit: () => void;
     hasCredits: boolean;
     personaContext?: string;
+    customInstruction?: string;
+    modeName?: string;
 }
 
 const ROLES: Record<string, string> = {
@@ -63,7 +65,7 @@ const ROLES: Record<string, string> = {
     5. strictly avoid medical diagnoses; focus on emotional support and well-being.`
 };
 
-const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, personaContext }) => {
+const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, personaContext, customInstruction, modeName }) => {
     const [active, setActive] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedRole, setSelectedRole] = useState<string>('Mock Interviewer');
@@ -131,10 +133,16 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                 }
 
                 // Construct system instruction with user persona context
-                const roleInstruction = ROLES[selectedRole];
-                const fullSystemInstruction = personaContext
-                    ? `${roleInstruction}\n\nIMPORTANT USER CONTEXT (Use this to personalize the interaction):\n${personaContext}`
-                    : roleInstruction;
+                let fullSystemInstruction = "";
+
+                if (customInstruction) {
+                    fullSystemInstruction = customInstruction;
+                } else {
+                    const roleInstruction = ROLES[selectedRole];
+                    fullSystemInstruction = personaContext
+                        ? `${roleInstruction}\n\nIMPORTANT USER CONTEXT (Use this to personalize the interaction):\n${personaContext}`
+                        : roleInstruction;
+                }
 
                 liveClient.current = new GeminiLiveClient({
                     apiKey,
@@ -142,7 +150,8 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     onConnect: () => {
                         setActive(true);
                         setIsLoading(false);
-                        setTranscript(prev => [...prev, `System: Connected as ${selectedRole}`]);
+                        const roleName = modeName || selectedRole;
+                        setTranscript(prev => [...prev, `System: Connected as ${roleName}`]);
 
                         // Deduct credit immediately on start, then every minute
                         onDeductCredit();
@@ -213,7 +222,13 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                 <div className="text-center space-y-1">
                     <h2 className="text-2xl md:text-3xl font-light text-white tracking-wide">Wena AI</h2>
                     <p className="text-slate-400 text-sm md:text-base">
-                        {isLoading ? 'Connecting...' : (active ? `Speaking with ${selectedRole}...` : 'Select a role and tap to start')}
+                        {isLoading
+                            ? 'Connecting...'
+                            : (active
+                                ? `Speaking with ${modeName || selectedRole}...`
+                                : (customInstruction ? `Tap to start ${modeName || 'Lesson'}` : 'Select a role and tap to start')
+                            )
+                        }
                     </p>
                 </div>
 
@@ -224,25 +239,27 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     isLoading={isLoading}
                 />
 
-                {/* Role Chips - Grid layout for mobile */}
-                <div className="grid grid-cols-3 gap-2 md:flex md:gap-3 md:flex-wrap md:justify-center max-w-sm md:max-w-md">
-                    {Object.keys(ROLES).map((role) => (
-                        <button
-                            key={role}
-                            onClick={() => !active && setSelectedRole(role)}
-                            disabled={active}
-                            className={`px-2 py-1.5 md:px-4 md:py-2 rounded-full border text-xs md:text-sm transition-all duration-300
-                        ${selectedRole === role
-                                    ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.2)] scale-105'
-                                    : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700 hover:border-cyan-500/50'
-                                }
-                        ${active ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                    `}
-                        >
-                            {role}
-                        </button>
-                    ))}
-                </div>
+                {/* Role Chips - Grid layout for mobile - Only show if no custom instruction */}
+                {!customInstruction && (
+                    <div className="grid grid-cols-3 gap-2 md:flex md:gap-3 md:flex-wrap md:justify-center max-w-sm md:max-w-md">
+                        {Object.keys(ROLES).map((role) => (
+                            <button
+                                key={role}
+                                onClick={() => !active && setSelectedRole(role)}
+                                disabled={active}
+                                className={`px-2 py-1.5 md:px-4 md:py-2 rounded-full border text-xs md:text-sm transition-all duration-300
+                            ${selectedRole === role
+                                        ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.2)] scale-105'
+                                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700 hover:border-cyan-500/50'
+                                    }
+                            ${active ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                        `}
+                            >
+                                {role}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 {error && (
                     <div className="absolute bottom-4 left-4 right-4 md:bottom-10 md:left-auto md:right-auto bg-red-500/10 border border-red-500/50 text-red-200 px-4 py-2 md:px-6 md:py-3 rounded-lg flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-2 text-sm">

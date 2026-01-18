@@ -64,10 +64,71 @@ export default function Profile() {
     navigate('/login');
   };
 
+  const { data: userStats } = useQuery({
+    queryKey: ['userStats', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_stats')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: moduleStats } = useQuery({
+    queryKey: ['moduleStats', user?.id],
+    queryFn: async () => {
+      const { count: totalCount, error: countError } = await supabase
+        .from('modules')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user?.id);
+
+      if (countError) throw countError;
+
+      const { count: completedCount, error: completedError } = await supabase
+        .from('user_module_progress')
+        .select('module_id', { count: 'exact', head: true })
+        .eq('user_id', user?.id)
+        .gte('completion_percentage', 100);
+
+      if (completedError) throw completedError;
+
+      return {
+        totalCount: totalCount || 0,
+        completedCount: completedCount || 0
+      };
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: rank } = useQuery({
+    queryKey: ['rank', userStats?.total_xp],
+    queryFn: async () => {
+      if (!userStats?.total_xp) return 0;
+
+      const { count, error } = await supabase
+        .from('user_stats')
+        .select('*', { count: 'exact', head: true })
+        .gt('total_xp', userStats.total_xp);
+
+      if (error) throw error;
+      return (count || 0) + 1;
+    },
+    enabled: !!userStats?.total_xp,
+  });
+
+  // Calculate dynamic stats
+  const currentLevel = Math.floor((userStats?.total_xp || 0) / 1000) + 1;
+  const totalHours = Math.round((moduleStats?.completedCount || 0) * 2.5); // Approx 2.5 hours per module
+
   const stats = [
-    { label: "Modules", value: "8", emoji: "📚" },
-    { label: "Hours", value: "42", emoji: "⏱️" },
-    { label: "Rank", value: "#156", emoji: "🏆" },
+    { label: "Modules", value: (moduleStats?.totalCount || 0).toString(), emoji: "📚" },
+    { label: "Hours", value: totalHours.toString(), emoji: "⏱️" },
+    { label: "Rank", value: rank ? `#${rank}` : "-", emoji: "🏆" },
   ];
 
   return (
@@ -107,10 +168,10 @@ export default function Profile() {
                 <p className="text-white/70 text-sm truncate">{user?.email}</p>
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   <span className="bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] text-white font-medium">
-                    Level 12
+                    Level {currentLevel || 1}
                   </span>
                   <span className="bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] text-white font-medium">
-                    🔥 15 days
+                    🔥 {userStats?.current_streak || 0} days
                   </span>
                 </div>
               </div>

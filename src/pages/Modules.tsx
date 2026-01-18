@@ -127,7 +127,7 @@ export default function Modules() {
 
       <div className="px-4 space-y-4">
         {/* AI Suggestions */}
-        <AiModuleSuggestions onModuleCreated={fetchModules} />
+        {/* <AiModuleSuggestions onModuleCreated={fetchModules} />  */ }
 
         {/* Modules Grid */}
         <AnimatePresence mode="popLayout">
