@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, User, Lock, Bell, Shield, LogOut, ChevronRight } from "lucide-react";
+import { ArrowLeft, User, Lock, Bell, Shield, LogOut, ChevronRight, Clock } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Settings() {
     const { signOut } = useAuth();
@@ -26,6 +28,82 @@ export default function Settings() {
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [loading, setLoading] = useState(false);
+
+    // Study Scheduler State
+    const [goalMinutes, setGoalMinutes] = useState("30");
+    const [studyTime, setStudyTime] = useState("18:00");
+    const [pushEnabled, setPushEnabled] = useState(false);
+    const [inAppEnabled, setInAppEnabled] = useState(true);
+    const [savingSettings, setSavingSettings] = useState(false);
+
+    const { user } = useAuth();
+
+    // Fetch initial settings
+    useEffect(() => {
+        const fetchSettings = async () => {
+            if (!user) return;
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('learning_goal_minutes, preferred_study_time, push_notifications_enabled, in_app_reminders_enabled')
+                .eq('id', user.id)
+                .single();
+
+            if (data && !error) {
+                setGoalMinutes(data.learning_goal_minutes?.toString() || "30");
+                // Convert full time string (HH:MM:SS) to HH:MM for input
+                setStudyTime(data.preferred_study_time?.substring(0, 5) || "18:00");
+                setPushEnabled(data.push_notifications_enabled ?? false);
+                setInAppEnabled(data.in_app_reminders_enabled ?? true);
+            }
+        };
+        fetchSettings();
+    }, [user]);
+
+    const saveStudySettings = async () => {
+        if (!user) return;
+        setSavingSettings(true);
+        try {
+            // Request notification permission if enabling push
+            if (pushEnabled && 'Notification' in window && Notification.permission !== 'granted') {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    setPushEnabled(false);
+                    toast({
+                        title: "Permission Denied",
+                        description: "Push notifications were not enabled.",
+                        variant: "destructive"
+                    });
+                    setSavingSettings(false);
+                    return;
+                }
+            }
+
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    learning_goal_minutes: parseInt(goalMinutes),
+                    preferred_study_time: `${studyTime}:00`,
+                    push_notifications_enabled: pushEnabled,
+                    in_app_reminders_enabled: inAppEnabled
+                })
+                .eq('id', user.id);
+
+            if (error) throw error;
+
+            toast({
+                title: "Settings Saved",
+                description: "Your study schedule has been updated.",
+            });
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error.message || "Failed to save settings.",
+                variant: "destructive"
+            });
+        } finally {
+            setSavingSettings(false);
+        }
+    };
 
     const handleLogout = async () => {
         await signOut();
@@ -146,14 +224,65 @@ export default function Settings() {
             ]
         },
         {
-            title: "Preferences",
+            title: "Study Schedule",
             items: [
                 {
-                    icon: Bell,
-                    label: "Notifications",
-                    description: "Manage your alerts",
-                    action: () => toast({ description: "Notification settings coming soon!" }),
+                    icon: Clock,
+                    label: "Daily Learning Goal",
+                    description: "Set your daily target",
+                    customAction: (
+                        <Select value={goalMinutes} onValueChange={setGoalMinutes}>
+                            <SelectTrigger className="w-[120px] h-8 bg-transparent border-border/50">
+                                <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="15">15 mins</SelectItem>
+                                <SelectItem value="30">30 mins</SelectItem>
+                                <SelectItem value="45">45 mins</SelectItem>
+                                <SelectItem value="60">60 mins</SelectItem>
+                                <SelectItem value="120">2 hours</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    )
                 },
+                {
+                    icon: Bell,
+                    label: "Preferred Study Time",
+                    description: "When should we remind you?",
+                    customAction: (
+                        <div className="flex items-center gap-2">
+                            <Input
+                                type="time"
+                                value={studyTime}
+                                onChange={(e) => setStudyTime(e.target.value)}
+                                className="w-[120px] h-8 bg-transparent border-border/50 text-right"
+                            />
+                        </div>
+                    )
+                },
+                {
+                    icon: Shield,
+                    label: "Push Notifications",
+                    description: "Get alerts on your device",
+                    customAction: (
+                        <Switch checked={pushEnabled} onCheckedChange={setPushEnabled} />
+                    )
+                },
+                {
+                    icon: Bell,
+                    label: "In-App Reminders",
+                    description: "Show toast notifications",
+                    customAction: (
+                        <Switch checked={inAppEnabled} onCheckedChange={setInAppEnabled} />
+                    )
+                }
+            ],
+            footerAction: saveStudySettings,
+            footerLabel: savingSettings ? "Saving..." : "Save Schedule"
+        },
+        {
+            title: "Preferences",
+            items: [
                 {
                     icon: Shield,
                     label: "Privacy",
@@ -221,6 +350,18 @@ export default function Settings() {
                                 </div>
                             ))}
                         </div>
+                        {group.footerAction && (
+                            <div className="mt-3 flex justify-end px-2">
+                                <Button
+                                    size="sm"
+                                    onClick={group.footerAction}
+                                    disabled={savingSettings}
+                                    className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/20 backdrop-blur-sm"
+                                >
+                                    {group.footerLabel}
+                                </Button>
+                            </div>
+                        )}
                     </motion.div>
                 ))}
 

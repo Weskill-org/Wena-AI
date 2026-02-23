@@ -17,11 +17,16 @@ import Certificates from "./pages/Certificates";
 import AiPersona from "./pages/AiPersona";
 import Flashcards from "./pages/Flashcards";
 import Challenge from "./pages/Challenge";
+import Tournament from "./pages/Tournament";
 import Referral from "./pages/Referral";
 import Settings from "./pages/Settings";
+import LearningPath from "./pages/LearningPath";
 import NotFound from "./pages/NotFound";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TrophyRoom from "./pages/TrophyRoom";
+import VerifyCertificate from "./pages/VerifyCertificate";
+import { useStudyReminders } from "./hooks/useStudyReminders";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +48,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function GlobalHooks() {
+  useStudyReminders();
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -50,6 +60,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <GlobalHooks />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -61,15 +72,19 @@ const App = () => (
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/profile/edit" element={<ProtectedRoute><ProfileEdit /></ProtectedRoute>} />
             <Route path="/certificates" element={<ProtectedRoute><Certificates /></ProtectedRoute>} />
+            <Route path="/profile/trophy-room" element={<ProtectedRoute><TrophyRoom /></ProtectedRoute>} />
             <Route path="/profile/ai-persona" element={<ProtectedRoute><AiPersona /></ProtectedRoute>} />
             <Route path="/flashcards" element={<ProtectedRoute><Flashcards /></ProtectedRoute>} />
             <Route path="/challenge" element={<ProtectedRoute><Challenge /></ProtectedRoute>} />
+            <Route path="/tournament" element={<ProtectedRoute><Tournament /></ProtectedRoute>} />
             <Route path="/referral" element={<ProtectedRoute><Referral /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/learning-path" element={<ProtectedRoute><LearningPath /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/privacypolicy" element={<PrivacyPolicy />} />
+            <Route path="/verify/:code" element={<VerifyCertificate />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

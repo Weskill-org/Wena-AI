@@ -1,13 +1,18 @@
 import { motion } from "framer-motion";
-import { Award, Download, ExternalLink } from "lucide-react";
+import { Award, Download, ExternalLink, ShieldCheck, Loader2 } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { generateCertificatePDF } from "@/components/certificates/CertificatePDF";
+import { useState } from "react";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function Certificates() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const { data: certificates, isLoading } = useQuery({
     queryKey: ['certificates', user?.id],
@@ -23,10 +28,36 @@ export default function Certificates() {
     enabled: !!user?.id,
   });
 
+  const handleDownloadPDF = async (cert: any) => {
+    setDownloadingId(cert.id);
+    try {
+      await generateCertificatePDF({
+        title: cert.title,
+        userName: user?.user_metadata?.full_name || "Student",
+        issuedDate: format(new Date(cert.issued_date), 'MMMM dd, yyyy'),
+        verificationCode: cert.verification_code,
+        description: cert.description
+      });
+      toast({
+        title: "Certificate Generated",
+        description: "Your digital certificate is ready for download.",
+      });
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+      toast({
+        title: "Download Failed",
+        description: "Could not generate PDF. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen pb-20 px-4 pt-8 flex items-center justify-center">
-        <div className="animate-pulse text-primary">Loading certificates...</div>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -60,29 +91,37 @@ export default function Certificates() {
         </motion.div>
       ) : (
         <div className="space-y-4">
-          {certificates.map((cert, index) => (
+          {certificates.map((cert: any, index: number) => (
             <motion.div
               key={cert.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="bg-gradient-primary rounded-3xl p-6 glow-primary"
+              className="bg-gradient-primary rounded-3xl p-6 glow-primary border border-white/10"
             >
               <div className="flex items-start gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
                   <Award className="w-8 h-8 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white mb-1">{cert.title}</h3>
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-xl font-bold text-white mb-1">{cert.title}</h3>
+                    {cert.verification_code && (
+                      <div className="bg-white/10 px-2 py-0.5 rounded text-[10px] text-white/70 font-mono tracking-tighter flex items-center gap-1 border border-white/5">
+                        <ShieldCheck className="w-3 h-3" />
+                        {cert.verification_code}
+                      </div>
+                    )}
+                  </div>
                   {cert.description && (
                     <p className="text-white/80 text-sm mb-3">{cert.description}</p>
                   )}
                   <div className="flex items-center gap-2 text-white/60 text-sm mb-4">
                     <span>Issued: {format(new Date(cert.issued_date), 'MMM dd, yyyy')}</span>
                   </div>
-                  
-                  {cert.certificate_url && (
-                    <div className="flex gap-2">
+
+                  <div className="flex flex-wrap gap-2">
+                    {cert.certificate_url && (
                       <a
                         href={cert.certificate_url}
                         target="_blank"
@@ -90,18 +129,22 @@ export default function Certificates() {
                         className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-smooth text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2"
                       >
                         <ExternalLink className="w-4 h-4" />
-                        View
+                        Original View
                       </a>
-                      <a
-                        href={cert.certificate_url}
-                        download
-                        className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-smooth text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2"
-                      >
+                    )}
+                    <button
+                      onClick={() => handleDownloadPDF(cert)}
+                      disabled={downloadingId === cert.id}
+                      className="bg-white text-primary hover:bg-white/90 transition-smooth px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg disabled:opacity-50"
+                    >
+                      {downloadingId === cert.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
                         <Download className="w-4 h-4" />
-                        Download
-                      </a>
-                    </div>
-                  )}
+                      )}
+                      Download Verifiable PDF
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -113,3 +156,4 @@ export default function Certificates() {
     </div>
   );
 }
+
