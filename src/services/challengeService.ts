@@ -35,6 +35,21 @@ export interface League {
     rank_order: number;
 }
 
+export interface Tournament {
+    id: string;
+    title: string;
+    description: string;
+    theme: string;
+    start_date: string;
+    end_date: string;
+    is_active: boolean;
+}
+
+export interface TournamentParticipant extends LeaderboardEntry {
+    score: number;
+    attempts_count: number;
+}
+
 // Streak rewards: every 5 days, incremental credits
 const STREAK_REWARDS: Record<number, number> = {
     5: 20,
@@ -51,10 +66,11 @@ const XP_WRONG = -10;
 
 export const challengeService = {
     // Generate a fresh AI question in real-time (not stored in DB)
-    async generateChallenge(): Promise<GeneratedChallenge> {
+    async generateChallenge(theme?: string): Promise<GeneratedChallenge> {
+        const themePrompt = theme ? `The theme is: ${theme}. Make the question highly relevant to this theme.` : `Topics can be: general knowledge, science, technology, history, geography, arts, sports.`;
         const prompt = `
             Generate a single engaging daily trivia or logic challenge question.
-            Topics can be: general knowledge, science, technology, history, geography, arts, sports.
+            ${themePrompt}
             Make it interesting and educational.
             
             Return ONLY a valid JSON object with this exact structure (no markdown, no code blocks):
@@ -63,7 +79,7 @@ export const challengeService = {
                 "options": ["Option A", "Option B", "Option C", "Option D"],
                 "correct_answer": "Option A",
                 "difficulty": "Medium",
-                "topic": "Science"
+                "topic": "${theme || 'General'}"
             }
             
             Rules:
@@ -336,5 +352,83 @@ export const challengeService = {
 
     getStreakRewards(): Record<number, number> {
         return STREAK_REWARDS;
+    },
+
+    async getActiveTournament(): Promise<Tournament | null> {
+        const { data, error } = await supabase.rpc('get_active_tournament');
+
+        if (error) {
+            console.error("Error fetching active tournament:", error);
+            return null;
+        }
+
+        return data?.[0] || null;
+    },
+
+    async getTournamentLeaderboard(tournamentId: string): Promise<TournamentParticipant[]> {
+        const { data, error } = await supabase
+            .from('tournament_participants')
+            .select(`
+                score,
+                attempts_count,
+                profiles (
+                    id,
+                    full_name,
+                    avatar_url
+                )
+            `)
+            .eq('tournament_id', tournamentId)
+            .order('score', { ascending: false })
+            .limit(10);
+
+        if (error) {
+            console.error("Error fetching tournament leaderboard:", error);
+            return [];
+        }
+
+        return data.map((entry: any, index: number) => {
+            const fullName = entry.profiles?.full_name || 'Anonymous';
+            return {
+                user_id: entry.profiles?.id || '',
+                first_name: fullName.split(' ')[0],
+                avatar_url: entry.profiles?.avatar_url,
+                monthly_xp: 0, // Not applicable for tournament leaderboard
+                score: entry.score,
+                attempts_count: entry.attempts_count,
+                current_streak: 0,
+                rank: index + 1
+            };
+        });
+    },
+
+    async submitTournamentAnswer(userId: string, tournamentId: string, isCorrect: boolean): Promise<any> {
+        const points = isCorrect ? 50 : 0; // Tournaments give more points/xp
+
+        if (isCorrect) {
+            // Update tournament participant score via RPC
+            const { error: tournamentError } = await supabase.rpc('submit_tournament_score', {
+                p_tournament_id: tournamentId,
+                p_points: points
+            });
+
+            if (tournamentError) console.error("Error updating tournament score:", tournamentError);
+
+            // Also give regular XP for tournament challenges
+            const { data: stats } = await supabase
+                .from('user_stats')
+                .select('total_xp, monthly_xp')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (stats) {
+                await supabase.from('user_stats').update({
+                    total_xp: (stats.total_xp || 0) + 20, // Tournaments give fixed XP bonus too
+                    monthly_xp: (stats.monthly_xp || 0) + 20,
+                    updated_at: new Date().toISOString()
+                }).eq('user_id', userId);
+            }
+        }
+
+        return { isCorrect, pointsEarned: points };
     }
 };

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { User, Wallet, Award, Settings, LogOut, Gift, ChevronRight, Edit, Sparkles } from "lucide-react";
+import { User, Wallet, Award, Settings, LogOut, Gift, ChevronRight, Edit, Sparkles, Trophy } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,19 @@ export default function Profile() {
         .maybeSingle();
       if (error) throw error;
       return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: earnedBadges } = useQuery({
+    queryKey: ['user-badges-count', user?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('user_badges')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user?.id);
+      if (error) throw error;
+      return count || 0;
     },
     enabled: !!user?.id,
   });
@@ -54,6 +67,7 @@ export default function Profile() {
   const menuItems = [
     { icon: Wallet, label: "Credit Wallet", value: `${wallet?.credits || 0} credits`, path: "/wallet", emoji: "💰" },
     { icon: Award, label: "Certificates", value: `${certificates?.length || 0} earned`, path: "/certificates", emoji: "🏆" },
+    { icon: Trophy, label: "Trophy Room", value: `${earnedBadges || 0} badges earned`, path: "/profile/trophy-room", emoji: "🏅" },
     { icon: Gift, label: "Refer & Earn", value: "Get 50 credits", path: "/referral", emoji: "🎁" },
     { icon: Sparkles, label: "AI Persona", value: "Customize AI", path: "/profile/ai-persona", emoji: "✨" },
     { icon: Settings, label: "Settings", value: "", path: "/settings", emoji: "⚙️" },

@@ -60,6 +60,15 @@ export default function AiPersona() {
             toast.success("Persona saved successfully");
             setOriginalText(personaText);
             setIsEditing(false);
+
+            // Suggest roadmap refresh
+            toast("Update your learning roadmap?", {
+                description: "Your AI Persona has changed. Let AI rebuild your path to match.",
+                action: {
+                    label: "Rebuild Path",
+                    onClick: () => navigate("/learning-path"),
+                },
+            });
         } catch (error) {
             console.error('Error saving persona:', error);
             toast.error("Failed to save persona");

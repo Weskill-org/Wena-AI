@@ -8,9 +8,61 @@ export interface FlashcardQuestion {
     category: string;
     input_type: 'text' | 'date' | 'select' | 'number';
     options?: string[];
+    is_review?: boolean;
+    previous_response?: string;
+}
+
+export interface SRSStats {
+    easiness_factor: number;
+    interval: number;
+    repetitions: number;
+    next_review_at: string;
 }
 
 export const personaService = {
+    /**
+     * SM-2 Algorithm Implementation
+     * @param quality 0-3 (0: Again, 1: Hard, 2: Good, 3: Easy)
+     */
+    calculateSRS(stats: SRSStats, quality: number): SRSStats {
+        let { easiness_factor, interval, repetitions } = stats;
+
+        // Map quality 0-3 to 0-5 for standard SM-2 if needed, 
+        // but let's adjust the formula for 0-3 range directly.
+        // Again=0, Hard=1, Good=2, Easy=3
+
+        if (quality >= 2) { // Good or Easy
+            if (repetitions === 0) {
+                interval = 1;
+            } else if (repetitions === 1) {
+                interval = 6;
+            } else {
+                interval = Math.round(interval * easiness_factor);
+            }
+            repetitions++;
+        } else { // Again or Hard
+            repetitions = 0;
+            interval = 1;
+        }
+
+        // Adjust easiness factor: EF' = EF + (0.1 - (3 - quality) * (0.08 + (3 - quality) * 0.02))
+        // Simplified for 0-3:
+        const qualityImpact = [-0.5, -0.2, 0, 0.1]; // Again, Hard, Good, Easy
+        easiness_factor = easiness_factor + qualityImpact[quality];
+
+        if (easiness_factor < 1.3) easiness_factor = 1.3;
+
+        const next_review_at = new Date();
+        next_review_at.setDate(next_review_at.getDate() + interval);
+
+        return {
+            easiness_factor,
+            interval,
+            repetitions,
+            next_review_at: next_review_at.toISOString(),
+        };
+    },
+
     async checkAndResetDailyLimit(userId: string): Promise<number> {
         // Calculate today's date in IST (UTC+5:30)
         const now = new Date();
@@ -21,7 +73,7 @@ export const personaService = {
         // Fetch current limit
         // @ts-ignore
         const { data, error } = await supabase
-            .from('daily_flashcard_limits')
+            .from('daily_flashcard_limits' as any)
             .select('*')
             .eq('user_id', userId)
             .maybeSingle();
@@ -35,7 +87,7 @@ export const personaService = {
             // Create new record
             // @ts-ignore
             const { error: insertError } = await supabase
-                .from('daily_flashcard_limits')
+                .from('daily_flashcard_limits' as any)
                 .insert({
                     user_id: userId,
                     remaining_questions: 10,
@@ -47,11 +99,12 @@ export const personaService = {
         }
 
         // Check if reset is needed
-        if (data.last_reset_date !== todayStr) {
+        const limitData = data as any;
+        if (limitData.last_reset_date !== todayStr) {
             console.log("Resetting daily limit for new day (IST):", todayStr);
             // @ts-ignore
             const { error: updateError } = await supabase
-                .from('daily_flashcard_limits')
+                .from('daily_flashcard_limits' as any)
                 .update({
                     remaining_questions: 10,
                     last_reset_date: todayStr
@@ -62,7 +115,7 @@ export const personaService = {
             return 10;
         }
 
-        return data.remaining_questions;
+        return limitData.remaining_questions;
     },
 
     async decrementDailyLimit(userId: string) {
@@ -70,7 +123,7 @@ export const personaService = {
         if (current > 0) {
             // @ts-ignore
             await supabase
-                .from('daily_flashcard_limits')
+                .from('daily_flashcard_limits' as any)
                 .update({ remaining_questions: current - 1 })
                 .eq('user_id', userId);
         }
@@ -249,45 +302,61 @@ export const personaService = {
     },
 
     async getDailyQuestions(userId: string): Promise<FlashcardQuestion[]> {
-        console.log("Fetching daily questions for user:", userId);
+        console.log("Fetching questions for user:", userId);
 
-        // 1. Get today's responses count
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
+        // 1. Fetch Due Reviews
         // @ts-ignore
-        const { data: todayResponses, error: rError } = await supabase
-            .from('flashcard_responses')
-            .select('*')
+        const { data: dueReviews, error: reviewError } = await supabase
+            .from('user_flashcard_stats')
+            .select(`
+                question_id,
+                flashcard_questions (*)
+            `)
             .eq('user_id', userId)
-            .gte('answered_at', today.toISOString());
+            .lte('next_review_at', new Date().toISOString())
+            .order('next_review_at', { ascending: true });
 
-        if (rError) throw rError;
+        if (reviewError) console.error("Error fetching due reviews:", reviewError);
 
-        if (todayResponses && todayResponses.length >= 3) {
-            console.log("User has already answered 3 questions today.");
-            // Even if quota is full, we might want to return empty here and let the UI decide if it wants to request "Extra" questions.
-            // But based on current logic, returning empty triggers "Completed".
-            // The requirement says "If questions are already answered, Generate dynamic question".
-            // If we strictly follow daily limit, we stop.
-            // If we interpret the user request as "Keep going", we should return a dynamic question?
-            // "Flashcard will generate relevent persona Questions... we will not save these ai questions". 
-            // It seems like an unlimited mode or at least a fallback.
-            // For now, I will return empty array to respect the "Daily" limit of saved questions. 
-            // BUT, if the user explicitly wants to generate dynamic questions when "questions are already answered",
-            // maybe they mean "Valid Backend Questions are answered".
+        // 2. Fetch Previous Responses for Reviews
+        const dueQuestionIds = dueReviews?.map(r => r.question_id) || [];
+        let previousResponsesMap: Record<string, string> = {};
 
-            // Let's stick to:
-            // 1. Return backend questions if available.
-            // 2. If NO backend questions, return ONE dynamic question (even if daily limit of 3 is met? No, limit is for interactions).
-            // Actually, if I don't save responses, the limit doesn't apply to dynamic Qs.
-            // So effectively, once backend Qs are done, we can serve infinite dynamic Qs.
+        if (dueQuestionIds.length > 0) {
+            const { data: responses } = await supabase
+                .from('flashcard_responses')
+                .select('question_id, response')
+                .eq('user_id', userId)
+                .in('question_id', dueQuestionIds);
+
+            responses?.forEach(r => {
+                previousResponsesMap[r.question_id] = r.response;
+            });
+        }
+
+        const reviewQuestions: FlashcardQuestion[] = (dueReviews || []).map(r => {
+            const q = r.flashcard_questions as any;
+            return {
+                ...q,
+                options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : undefined,
+                is_review: true,
+                previous_response: previousResponsesMap[q.id] || "No previous answer found"
+            };
+        });
+
+        // 3. If we have due reviews, return them (prioritizing reviews)
+        if (reviewQuestions.length > 0) {
+            return reviewQuestions;
+        }
+
+        // 4. Fallback to New Questions (Existing Logic but 10 card target)
+        // Check today's progress to see if we should serve NEW cards
+        const remainingNew = await this.getTodayProgress(userId);
+
+        if (remainingNew <= 0) {
             return [];
         }
 
-        const remainingQuota = 3 - (todayResponses?.length || 0);
-
-        // 2. Get all questions
         // @ts-ignore
         const { data: allQuestions, error: qError } = await supabase
             .from('flashcard_questions')
@@ -296,53 +365,85 @@ export const personaService = {
 
         if (qError) throw qError;
 
-        // 3. Filter unanswered questions
+        // Filter unanswered questions (that aren't in stats yet)
         // @ts-ignore
-        const { data: allResponses } = await supabase
-            .from('flashcard_responses')
+        const { data: existingStats } = await supabase
+            .from('user_flashcard_stats')
             .select('question_id')
             .eq('user_id', userId);
 
-        const answeredQuestionIds = new Set(allResponses?.map((r: any) => r.question_id));
-        const unansweredQuestions = (allQuestions as any[] || []).filter(q => !answeredQuestionIds.has(q.id));
+        const scheduledIds = new Set(existingStats?.map((s: any) => s.question_id));
+        const unansweredQuestions = (allQuestions as any[] || []).filter(q => !scheduledIds.has(q.id));
 
-        // 4. Return up to remainingQuota backend questions
-        // We do NOT generate AI questions here to fill the batch anymore.
-        // We let the frontend ask for dynamic questions one by one if this list runs out.
-        // Wait, if I change this, `Flashcards.tsx` needs to know when to ask for dynamic.
-        // If I return fewer than `remainingQuota`, the frontend will finish them and then... stop?
-        // I need to update `Flashcards.tsx` to handle "fetch more".
-
-        return unansweredQuestions.slice(0, remainingQuota).map(q => ({
+        return unansweredQuestions.slice(0, remainingNew).map(q => ({
             ...q,
             options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : undefined
         }));
     },
 
-    async submitFlashcardResponse(userId: string, questionId: string, response: string, fieldKey: string) {
-        // 1. Save response ONLY if it's not a dynamic question
+    async submitFlashcardResponse(userId: string, questionId: string, response: string, fieldKey: string, rating?: number) {
+        // 1. Save or Update response
         if (!questionId.startsWith('dynamic-')) {
-            // @ts-ignore
             const { error: rError } = await supabase
                 .from('flashcard_responses')
-                .insert({
+                .upsert({
                     user_id: userId,
                     question_id: questionId,
-                    response: response
-                });
+                    response: response,
+                    answered_at: new Date().toISOString()
+                }, { onConflict: 'user_id,question_id' } as any);
 
             if (rError) throw rError;
+
+            // 2. Handle SRS Metadata
+            // Fetch current stats
+            const { data: existingStats } = await supabase
+                .from('user_flashcard_stats')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('question_id', questionId)
+                .maybeSingle();
+
+            const currentStats: SRSStats = existingStats ? {
+                easiness_factor: existingStats.easiness_factor,
+                interval: existingStats.interval,
+                repetitions: existingStats.repetitions,
+                next_review_at: existingStats.next_review_at
+            } : {
+                easiness_factor: 2.5,
+                interval: 0,
+                repetitions: 0,
+                next_review_at: new Date().toISOString()
+            };
+
+            // Calculate new stats (default to quality=2 (Good) if no rating provided)
+            const newStats = this.calculateSRS(currentStats, rating ?? 2);
+
+            const { error: statsError } = await supabase
+                .from('user_flashcard_stats')
+                .upsert({
+                    user_id: userId,
+                    question_id: questionId,
+                    ...newStats,
+                    last_reviewed_at: new Date().toISOString()
+                });
+
+            if (statsError) console.error("Error updating SRS stats:", statsError);
+
+            // 3. Decrement Daily Limit ONLY for NEW cards
+            if (!existingStats) {
+                await this.decrementDailyLimit(userId);
+            }
         } else {
             console.log("Skipping DB save for dynamic question response");
+            // Still decrement limit for dynamic cards as they count towards persona building
+            await this.decrementDailyLimit(userId);
         }
 
-        // 2. Decrement Daily Limit
-        await this.decrementDailyLimit(userId);
-
-        // 3. Update persona details (JSON)
+        // 4. Update persona details (JSON)
         await this.updatePersona(userId, { [fieldKey]: response });
 
-        // 4. Update AI Persona Text
+        // 5. Update AI Persona Text
         const formattedKey = fieldKey
             .split('_')
             .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
@@ -357,6 +458,47 @@ export const personaService = {
     async getTodayProgress(userId: string) {
         // We return the remaining count directly, so UI logic will change to "remaining > 0"
         return this.checkAndResetDailyLimit(userId);
-    }
+    },
+
+    async isOnboardingComplete(userId: string): Promise<boolean> {
+        // @ts-ignore
+        const { data } = await supabase
+            .from('ai_personas')
+            .select('onboarding_completed')
+            .eq('user_id', userId)
+            .maybeSingle();
+        return (data as any)?.onboarding_completed === true;
+    },
+
+    async completeOnboarding(
+        userId: string,
+        goals: string,
+        skillLevel: string,
+        weeklyHours: string,
+        interests: string[]
+    ) {
+        // @ts-ignore
+        const { error } = await supabase
+            .from('ai_personas')
+            .upsert({
+                user_id: userId,
+                learning_goals: goals,
+                skill_level: skillLevel,
+                weekly_hours: weeklyHours,
+                interests,
+                onboarding_completed: true,
+                updated_at: new Date().toISOString(),
+            } as any, { onConflict: 'user_id' });
+
+        if (error) throw error;
+
+        // Trigger learning path generation asynchronously
+        // We don't await it here to avoid blocking the UI response
+        import('./learningPathService').then(({ learningPathService }) => {
+            learningPathService.generateLearningPath(userId).catch(err => {
+                console.error("Error generating learning path after onboarding:", err);
+            });
+        });
+    },
 };
 

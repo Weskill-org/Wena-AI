@@ -29,7 +29,7 @@ export default function Challenge() {
     const [loading, setLoading] = useState(true);
     const [userStats, setUserStats] = useState<UserStats | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-    
+
     // Challenge state
     const [challengeState, setChallengeState] = useState<'idle' | 'loading' | 'active' | 'completed' | 'cooldown'>('idle');
     const [challenge, setChallenge] = useState<GeneratedChallenge | null>(null);
@@ -45,11 +45,11 @@ export default function Challenge() {
         correctAnswer: string;
         newLeague: string;
     } | null>(null);
-    
+
     // Timer
     const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
-    
+
     // Cooldown
     const [cooldownMinutes, setCooldownMinutes] = useState(0);
 
@@ -57,7 +57,7 @@ export default function Challenge() {
         if (user?.id) {
             loadInitialData();
         }
-        
+
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
@@ -70,13 +70,13 @@ export default function Challenge() {
                 challengeService.getUserStats(user!.id),
                 challengeService.getLeaderboard()
             ]);
-            
+
             setUserStats(stats);
             setLeaderboard(lb);
 
             // Check if user can attempt today
             const canAttempt = await challengeService.canAttemptToday(user!.id);
-            
+
             if (canAttempt.completedToday) {
                 setChallengeState('completed');
             } else if (canAttempt.reason === 'cooldown' && canAttempt.waitMinutes) {
@@ -98,12 +98,12 @@ export default function Challenge() {
         setSelectedOption(null);
         setResult(null);
         setTimeLeft(TIMER_SECONDS);
-        
+
         try {
             const generatedChallenge = await challengeService.generateChallenge();
             setChallenge(generatedChallenge);
             setChallengeState('active');
-            
+
             // Start timer
             timerRef.current = setInterval(() => {
                 setTimeLeft(prev => {
@@ -123,9 +123,9 @@ export default function Challenge() {
 
     const handleTimeUp = useCallback(async () => {
         if (timerRef.current) clearInterval(timerRef.current);
-        
+
         if (!challenge || !user?.id) return;
-        
+
         // Auto-submit as wrong if time runs out
         setSubmitting(true);
         try {
@@ -134,12 +134,12 @@ export default function Challenge() {
                 '', // Empty answer = wrong
                 challenge.correct_answer
             );
-            
+
             setResult({
                 ...submitResult,
                 correctAnswer: challenge.correct_answer
             });
-            
+
             if (!submitResult.isCorrect) {
                 toast.error("Time's up! You can try again in 60 minutes.");
                 setChallengeState('cooldown');
@@ -154,9 +154,9 @@ export default function Challenge() {
 
     const handleSubmit = async () => {
         if (!selectedOption || !challenge || !user?.id) return;
-        
+
         if (timerRef.current) clearInterval(timerRef.current);
-        
+
         setSubmitting(true);
         try {
             const submitResult = await challengeService.submitAnswer(
@@ -164,16 +164,16 @@ export default function Challenge() {
                 selectedOption,
                 challenge.correct_answer
             );
-            
+
             setResult({
                 ...submitResult,
                 correctAnswer: challenge.correct_answer
             });
-            
+
             if (submitResult.isCorrect) {
                 toast.success(`Correct! +${submitResult.xpEarned} XP`);
                 setChallengeState('completed');
-                
+
                 // Update local stats
                 setUserStats(prev => prev ? {
                     ...prev,
@@ -186,7 +186,7 @@ export default function Challenge() {
                 toast.error(`Incorrect! ${submitResult.xpEarned} XP. Try again in 60 minutes.`);
                 setChallengeState('cooldown');
                 setCooldownMinutes(60);
-                
+
                 // Update local stats with XP deduction
                 setUserStats(prev => prev ? {
                     ...prev,
@@ -268,6 +268,32 @@ export default function Challenge() {
                     </TabsList>
 
                     <TabsContent value="challenge" className="space-y-4">
+                        {/* Weekly Tournament Banner */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={() => navigate('/tournament')}
+                            className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl p-4 cursor-pointer hover:shadow-lg transition-all active:scale-[0.98] group"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center text-yellow-500 group-hover:scale-110 transition-transform">
+                                        <Trophy className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-sm">Weekly Tournament</h3>
+                                        <p className="text-xs text-muted-foreground">Themed challenges & big rewards</p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[10px] font-black bg-yellow-500 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">LIVE</span>
+                                    <div className="mt-2 text-xs font-bold text-primary flex items-center gap-1 group-hover:gap-2 transition-all">
+                                        Enter <ArrowLeft className="w-3 h-3 rotate-180" />
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+
                         {/* League Badge */}
                         {userStats && (
                             <motion.div
@@ -311,8 +337,8 @@ export default function Challenge() {
                                     +{streakRewards[nextRewardStreak] || 20} credits
                                 </span>
                             </div>
-                            <Progress 
-                                value={((userStats?.current_streak || 0) / nextRewardStreak) * 100} 
+                            <Progress
+                                value={((userStats?.current_streak || 0) / nextRewardStreak) * 100}
                                 className="h-2"
                             />
                             <p className="text-xs text-muted-foreground mt-2">
@@ -370,11 +396,10 @@ export default function Challenge() {
                                     {/* Timer */}
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-2">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                                                challenge.difficulty === 'Hard' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                                challenge.difficulty === 'Medium' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
-                                                'bg-green-500/10 text-green-500 border-green-500/20'
-                                            }`}>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${challenge.difficulty === 'Hard' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                                    challenge.difficulty === 'Medium' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
+                                                        'bg-green-500/10 text-green-500 border-green-500/20'
+                                                }`}>
                                                 {challenge.difficulty}
                                             </span>
                                             <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
@@ -388,8 +413,8 @@ export default function Challenge() {
                                     </div>
 
                                     {/* Progress bar for timer */}
-                                    <Progress 
-                                        value={(timeLeft / TIMER_SECONDS) * 100} 
+                                    <Progress
+                                        value={(timeLeft / TIMER_SECONDS) * 100}
                                         className={`h-1 mb-6 ${timeLeft <= 10 ? '[&>div]:bg-red-500' : timeLeft <= 30 ? '[&>div]:bg-yellow-500' : ''}`}
                                     />
 
@@ -403,16 +428,14 @@ export default function Challenge() {
                                                 key={idx}
                                                 onClick={() => setSelectedOption(option)}
                                                 disabled={submitting}
-                                                className={`w-full p-4 rounded-xl border text-left transition-all ${
-                                                    selectedOption === option
+                                                className={`w-full p-4 rounded-xl border text-left transition-all ${selectedOption === option
                                                         ? 'bg-primary/10 border-primary ring-1 ring-primary'
                                                         : 'bg-background/50 border-border hover:bg-background hover:border-primary/50'
-                                                }`}
+                                                    }`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs ${
-                                                        selectedOption === option ? 'bg-primary text-primary-foreground border-primary' : 'border-muted-foreground text-muted-foreground'
-                                                    }`}>
+                                                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs ${selectedOption === option ? 'bg-primary text-primary-foreground border-primary' : 'border-muted-foreground text-muted-foreground'
+                                                        }`}>
                                                         {String.fromCharCode(65 + idx)}
                                                     </div>
                                                     <span className={selectedOption === option ? 'font-medium' : ''}>{option}</span>
@@ -456,7 +479,7 @@ export default function Challenge() {
                                     <div className="text-4xl font-bold text-yellow-500 mb-6">
                                         ~{cooldownMinutes} min
                                     </div>
-                                    
+
                                     {result && (
                                         <div className="p-4 bg-muted/50 rounded-xl text-left">
                                             <p className="text-sm font-medium mb-1 text-muted-foreground">Correct Answer:</p>
@@ -555,12 +578,11 @@ export default function Challenge() {
                                             className={`p-4 flex items-center justify-between ${entry.user_id === user?.id ? 'bg-primary/5' : ''}`}
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-8 h-8 flex items-center justify-center font-bold rounded-full ${
-                                                    entry.rank === 1 ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/20' :
-                                                    entry.rank === 2 ? 'bg-slate-400 text-white' :
-                                                    entry.rank === 3 ? 'bg-amber-600 text-white' :
-                                                    'text-muted-foreground bg-muted'
-                                                }`}>
+                                                <div className={`w-8 h-8 flex items-center justify-center font-bold rounded-full ${entry.rank === 1 ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/20' :
+                                                        entry.rank === 2 ? 'bg-slate-400 text-white' :
+                                                            entry.rank === 3 ? 'bg-amber-600 text-white' :
+                                                                'text-muted-foreground bg-muted'
+                                                    }`}>
                                                     {entry.rank}
                                                 </div>
                                                 <div className="flex items-center gap-3">

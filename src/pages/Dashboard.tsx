@@ -1,14 +1,17 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bot, BookOpen, Zap, Target, Gift, ChevronRight } from "lucide-react";
+import { Zap, Target, Gift, ChevronRight, Bell, BookOpen, Bot } from "lucide-react";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { BottomNav } from "@/components/layout/BottomNav";
-import { AdaptiveTimeline } from "@/components/modules/AdaptiveTimeline";
+import { LearningPathWidget } from "@/components/modules/LearningPathWidget";
+import { OnboardingQuiz } from "@/components/onboarding/OnboardingQuiz";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { moduleService } from "@/services/moduleService";
 import { personaService } from "@/services/personaService";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const quickActions = [
   { icon: Bot, label: "AI Buddy", gradient: "primary", path: "/chat", description: "Chat with AI" },
@@ -21,6 +24,14 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const greeting = getGreeting();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    personaService.isOnboardingComplete(user.id).then(done => {
+      if (!done) setShowOnboarding(true);
+    });
+  }, [user?.id]);
 
   const { data: profile } = useQuery({
     queryKey: ['profile', user?.id],
@@ -83,17 +94,20 @@ export default function Dashboard() {
               Hi, <span className="bg-gradient-to-r from-primary to-pink-500 bg-clip-text text-transparent">{userName}</span> 👋
             </h1>
           </div>
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/profile')}
-            className="w-11 h-11 rounded-2xl bg-surface border border-border flex items-center justify-center overflow-hidden active-scale"
-          >
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-xl">👤</span>
-            )}
-          </motion.button>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/profile')}
+              className="w-11 h-11 rounded-2xl bg-surface border border-border flex items-center justify-center overflow-hidden active-scale"
+            >
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl">👤</span>
+              )}
+            </motion.button>
+          </div>
         </motion.div>
       </div>
 
@@ -202,9 +216,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Adaptive Timeline */}
+        {/* AI Learning Path Widget */}
         <div>
-          <AdaptiveTimeline />
+          <h2 className="text-base font-semibold mb-3">Your AI Roadmap</h2>
+          <LearningPathWidget />
         </div>
 
         {/* Recent Modules */}
@@ -278,6 +293,11 @@ export default function Dashboard() {
       </div>
 
       <BottomNav />
+
+      {/* Onboarding Quiz (shown automatically for new users) */}
+      {showOnboarding && (
+        <OnboardingQuiz onComplete={() => setShowOnboarding(false)} />
+      )}
     </div>
   );
 }

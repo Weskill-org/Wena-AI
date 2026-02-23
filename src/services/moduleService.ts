@@ -234,6 +234,34 @@ export const moduleService = {
             .eq("module_id", moduleId);
 
         if (updateError) throw updateError;
+
+        // 5. Award Certificate if 100% complete
+        if (percentage === 100) {
+            // Check if already awarded for this module
+            const { data: existingCert } = await supabase
+                .from("certificates")
+                .select("id")
+                .eq("user_id", userId)
+                .eq("module_id" as any, moduleId)
+                .maybeSingle();
+
+            if (!existingCert) {
+                // Get module title
+                const { data: module } = await supabase
+                    .from("modules" as any)
+                    .select("title")
+                    .eq("id", moduleId)
+                    .single();
+
+                await supabase.from("certificates").insert({
+                    user_id: userId,
+                    module_id: moduleId as any,
+                    title: `${module?.title || 'Module'} Completion`,
+                    description: `Successfully completed all lessons in ${module?.title || 'the module'}.`,
+                    issued_date: new Date().toISOString().split('T')[0]
+                });
+            }
+        }
     },
 
     async createModuleWithCurriculum(moduleData: any, curriculumData: any) {

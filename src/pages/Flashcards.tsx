@@ -22,6 +22,7 @@ export default function Flashcards() {
     const [remainingQuestions, setRemainingQuestions] = useState(0);
     const [sessionCount, setSessionCount] = useState(0); // Track answers in this session
     const [initialDbCount, setInitialDbCount] = useState(0); // Track initial DB answers
+    const [showAnswer, setShowAnswer] = useState(false); // SRS show answer state
 
     useEffect(() => {
         if (user?.id) {
@@ -80,8 +81,8 @@ export default function Flashcards() {
         }
     };
 
-    const handleSubmit = async () => {
-        if (!answer.trim()) return;
+    const handleSubmit = async (rating?: number) => {
+        if (!answer.trim() && !showAnswer) return;
 
         const currentQuestion = questions[currentIndex];
         setSubmitting(true);
@@ -89,31 +90,26 @@ export default function Flashcards() {
             await personaService.submitFlashcardResponse(
                 user!.id,
                 currentQuestion.id,
-                answer,
-                currentQuestion.field_key
+                showAnswer ? currentQuestion.previous_response || "" : answer,
+                currentQuestion.field_key,
+                rating
             );
 
-            toast.success("Answer saved!");
+            toast.success(currentQuestion.is_review ? "Review saved!" : "Answer saved!");
             setAnswer("");
-
-            // Strictly decrement local state to reflect the action immediately
-            const newRemaining = remainingQuestions - 1;
-            setRemainingQuestions(newRemaining);
-            setSessionCount(prev => prev + 1);
+            setShowAnswer(false);
 
             // Logic to move next or finish
             if (currentIndex < questions.length - 1) {
                 setCurrentIndex(prev => prev + 1);
             } else {
-                // We are at the end of the list.
-                // Check if we need more questions.
-
-                if (newRemaining > 0) {
-                    // Generate next dynamic question
-                    const success = await generateAndAddQuestion(questions);
-                    if (success) {
-                        setCurrentIndex(prev => prev + 1);
-                    }
+                // We are at the end of the list. Fetch more if needed or finish.
+                const data = await personaService.getDailyQuestions(user!.id);
+                if (data.length > 0) {
+                    setQuestions(data);
+                    setCurrentIndex(0);
+                } else if (remainingQuestions > 0) {
+                    await generateAndAddQuestion([]);
                 } else {
                     setCompleted(true);
                 }
@@ -232,7 +228,7 @@ export default function Flashcards() {
                             >
                                 <div className="flex items-center justify-between mb-6">
                                     <span className="text-sm font-medium text-muted-foreground">
-                                        Remaining: {remainingQuestions} / 10
+                                        {currentQuestion.is_review ? "Review Queue" : `New: ${remainingQuestions} / 10`}
                                     </span>
                                     <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-bold">
                                         <Zap className="w-3 h-3" />
@@ -245,48 +241,103 @@ export default function Flashcards() {
                                 </h2>
 
                                 <div className="space-y-6">
-                                    {currentQuestion.input_type === 'select' && currentQuestion.options ? (
-                                        <Select value={answer} onValueChange={setAnswer}>
-                                            <SelectTrigger className="w-full h-12 bg-background/50 border-border">
-                                                <SelectValue placeholder="Select an option" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {currentQuestion.options.map((opt) => (
-                                                    <SelectItem key={opt} value={opt}>
-                                                        {opt}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    ) : currentQuestion.input_type === 'date' ? (
-                                        <Input
-                                            type="date"
-                                            value={answer}
-                                            onChange={(e) => setAnswer(e.target.value)}
-                                            className="h-12 bg-background/50 border-border"
-                                        />
+                                    {currentQuestion.is_review ? (
+                                        <div className="space-y-4">
+                                            {!showAnswer ? (
+                                                <Button
+                                                    onClick={() => setShowAnswer(true)}
+                                                    className="w-full h-12 bg-primary hover:bg-primary/90 text-white text-lg"
+                                                >
+                                                    Show Answer
+                                                </Button>
+                                            ) : (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className="space-y-6"
+                                                >
+                                                    <div className="p-4 rounded-2xl bg-background/50 border border-border italic text-muted-foreground">
+                                                        "{currentQuestion.previous_response}"
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <Button
+                                                            onClick={() => handleSubmit(0)} // Again
+                                                            variant="outline"
+                                                            className="h-12 border-red-500/50 text-red-500 hover:bg-red-500/10"
+                                                        >
+                                                            Again
+                                                        </Button>
+                                                        <Button
+                                                            onClick={() => handleSubmit(1)} // Hard
+                                                            variant="outline"
+                                                            className="h-12 border-orange-500/50 text-orange-500 hover:bg-orange-500/10"
+                                                        >
+                                                            Hard
+                                                        </Button>
+                                                        <Button
+                                                            onClick={() => handleSubmit(2)} // Good
+                                                            variant="outline"
+                                                            className="h-12 border-green-500/50 text-green-500 hover:bg-green-500/10"
+                                                        >
+                                                            Good
+                                                        </Button>
+                                                        <Button
+                                                            onClick={() => handleSubmit(3)} // Easy
+                                                            variant="outline"
+                                                            className="h-12 border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
+                                                        >
+                                                            Easy
+                                                        </Button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </div>
                                     ) : (
-                                        <Input
-                                            type="text"
-                                            placeholder="Type your answer here..."
-                                            value={answer}
-                                            onChange={(e) => setAnswer(e.target.value)}
-                                            className="h-12 bg-background/50 border-border"
-                                            autoFocus
-                                        />
-                                    )}
+                                        <>
+                                            {currentQuestion.input_type === 'select' && currentQuestion.options ? (
+                                                <Select value={answer} onValueChange={setAnswer}>
+                                                    <SelectTrigger className="w-full h-12 bg-background/50 border-border">
+                                                        <SelectValue placeholder="Select an option" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {currentQuestion.options.map((opt) => (
+                                                            <SelectItem key={opt} value={opt}>
+                                                                {opt}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : currentQuestion.input_type === 'date' ? (
+                                                <Input
+                                                    type="date"
+                                                    value={answer}
+                                                    onChange={(e) => setAnswer(e.target.value)}
+                                                    className="h-12 bg-background/50 border-border"
+                                                />
+                                            ) : (
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Type your answer here..."
+                                                    value={answer}
+                                                    onChange={(e) => setAnswer(e.target.value)}
+                                                    className="h-12 bg-background/50 border-border"
+                                                    autoFocus
+                                                />
+                                            )}
 
-                                    <Button
-                                        onClick={handleSubmit}
-                                        disabled={!answer || submitting}
-                                        className="w-full h-12 bg-primary hover:bg-primary/90 text-white text-lg"
-                                    >
-                                        {submitting ? "Saving..." : (
-                                            <span className="flex items-center gap-2">
-                                                Next Question <ChevronRight className="w-5 h-5" />
-                                            </span>
-                                        )}
-                                    </Button>
+                                            <Button
+                                                onClick={() => handleSubmit()}
+                                                disabled={!answer || submitting}
+                                                className="w-full h-12 bg-primary hover:bg-primary/90 text-white text-lg"
+                                            >
+                                                {submitting ? "Saving..." : (
+                                                    <span className="flex items-center gap-2">
+                                                        Next Question <ChevronRight className="w-5 h-5" />
+                                                    </span>
+                                                )}
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
                             </motion.div>
                         )
