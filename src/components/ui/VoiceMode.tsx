@@ -185,8 +185,14 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     onConnect: () => {
                         setActive(true);
                         setIsLoading(false);
+                        setSessionSeconds(0);
                         const roleName = modeName || selectedRole;
                         setTranscript(prev => [...prev, `System: Connected as ${roleName}`]);
+
+                        // Session timer
+                        timerInterval.current = setInterval(() => {
+                            setSessionSeconds(s => s + 1);
+                        }, 1000);
 
                         // Deduct credit immediately on start, then every minute
                         onDeductCredit();
