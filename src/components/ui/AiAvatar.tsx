@@ -37,7 +37,7 @@ function SkinMaterial({ color, roughness = 0.45, subsurface = 0.3, emissiveInten
 }
 
 /* ── Animated Eye with Blinking ───────────────────────────── */
-function Eye({ position, isActive, volume }: { position: [number, number, number]; isActive: boolean; volume: number }) {
+function Eye({ position, isActive, volume, isSleeping }: { position: [number, number, number]; isActive: boolean; volume: number; isSleeping?: boolean }) {
   const irisRef = useRef<THREE.Group>(null!);
   const pupilRef = useRef<THREE.Mesh>(null!);
   const upperLidRef = useRef<THREE.Mesh>(null!);
