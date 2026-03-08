@@ -199,9 +199,13 @@ export default function Challenge() {
                 } : null);
             }
 
-            // Refresh leaderboard
-            const lb = await challengeService.getLeaderboard();
+            // Refresh leaderboard and rank
+            const [lb, rank] = await Promise.all([
+                challengeService.getLeaderboard(),
+                challengeService.getUserRank(user!.id)
+            ]);
             setLeaderboard(lb);
+            setUserRank(rank);
         } catch (error) {
             console.error("Error submitting:", error);
             toast.error("Failed to submit answer");
