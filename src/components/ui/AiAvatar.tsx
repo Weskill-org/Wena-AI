@@ -388,6 +388,7 @@ function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume
   const skinHighlight = useMemo(() => new THREE.Color('#e0b890'), []);
   const skinShadow = useMemo(() => new THREE.Color('#b8906e'), []);
   const glowColor = useMemo(() => new THREE.Color('#4ab8d4'), []);
+  const isSleeping = !isActive && !isLoading;
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
