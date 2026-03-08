@@ -23,6 +23,7 @@ export default function Settings() {
     const { signOut } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { theme, setTheme } = useTheme();
     const [isPasswordOpen, setIsPasswordOpen] = useState(false);
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
