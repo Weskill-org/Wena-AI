@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.get-gemini-key]
 verify_jwt = true
+
+[functions.reset-monthly-xp]
+verify_jwt = false

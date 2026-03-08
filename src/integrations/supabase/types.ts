@@ -19,25 +19,73 @@ export type Database = {
           created_at: string
           details: Json | null
           id: string
+          interests: string[] | null
+          learning_goals: string | null
+          onboarding_completed: boolean
           persona_text: string | null
+          skill_level: string | null
           updated_at: string
           user_id: string
+          weekly_hours: string | null
         }
         Insert: {
           created_at?: string
           details?: Json | null
           id?: string
+          interests?: string[] | null
+          learning_goals?: string | null
+          onboarding_completed?: boolean
           persona_text?: string | null
+          skill_level?: string | null
           updated_at?: string
           user_id?: string
+          weekly_hours?: string | null
         }
         Update: {
           created_at?: string
           details?: Json | null
           id?: string
+          interests?: string[] | null
+          learning_goals?: string | null
+          onboarding_completed?: boolean
           persona_text?: string | null
+          skill_level?: string | null
           updated_at?: string
           user_id?: string
+          weekly_hours?: string | null
+        }
+        Relationships: []
+      }
+      badges: {
+        Row: {
+          created_at: string
+          criteria_type: string
+          criteria_value: number
+          description: string
+          emoji: string | null
+          icon_url: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          criteria_type: string
+          criteria_value: number
+          description: string
+          emoji?: string | null
+          icon_url?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          criteria_type?: string
+          criteria_value?: number
+          description?: string
+          emoji?: string | null
+          icon_url?: string | null
+          id?: string
+          name?: string
         }
         Relationships: []
       }
@@ -196,6 +244,24 @@ export type Database = {
           options?: Json | null
           question?: string
           topic?: string
+        }
+        Relationships: []
+      }
+      daily_flashcard_limits: {
+        Row: {
+          last_reset_date: string
+          remaining_questions: number
+          user_id: string
+        }
+        Insert: {
+          last_reset_date?: string
+          remaining_questions?: number
+          user_id: string
+        }
+        Update: {
+          last_reset_date?: string
+          remaining_questions?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -389,6 +455,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          link: string | null
+          message: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link?: string | null
+          message: string
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link?: string | null
+          message?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_orders: {
         Row: {
           amount: number
@@ -435,8 +534,13 @@ export type Database = {
           date_of_birth: string | null
           full_name: string
           id: string
+          in_app_reminders_enabled: boolean
           individual_gemini_key: string | null
+          last_reminded_date: string | null
+          learning_goal_minutes: number
           phone_number: string | null
+          preferred_study_time: string
+          push_notifications_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -445,8 +549,13 @@ export type Database = {
           date_of_birth?: string | null
           full_name: string
           id: string
+          in_app_reminders_enabled?: boolean
           individual_gemini_key?: string | null
+          last_reminded_date?: string | null
+          learning_goal_minutes?: number
           phone_number?: string | null
+          preferred_study_time?: string
+          push_notifications_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -455,8 +564,13 @@ export type Database = {
           date_of_birth?: string | null
           full_name?: string
           id?: string
+          in_app_reminders_enabled?: boolean
           individual_gemini_key?: string | null
+          last_reminded_date?: string | null
+          learning_goal_minutes?: number
           phone_number?: string | null
+          preferred_study_time?: string
+          push_notifications_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -530,6 +644,84 @@ export type Database = {
           },
         ]
       }
+      tournament_participants: {
+        Row: {
+          attempts_count: number
+          created_at: string
+          id: string
+          last_attempt_at: string | null
+          score: number
+          tournament_id: string
+          user_id: string
+        }
+        Insert: {
+          attempts_count?: number
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          score?: number
+          tournament_id: string
+          user_id: string
+        }
+        Update: {
+          attempts_count?: number
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          score?: number
+          tournament_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_participants_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournaments: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          start_date: string
+          theme: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          start_date: string
+          theme: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          start_date?: string
+          theme?: string
+          title?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
@@ -556,6 +748,42 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_badges: {
+        Row: {
+          badge_id: string
+          earned_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          earned_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          earned_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_badges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_challenge_attempts: {
         Row: {
@@ -601,6 +829,71 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_flashcard_stats: {
+        Row: {
+          created_at: string
+          easiness_factor: number
+          interval: number
+          last_reviewed_at: string | null
+          next_review_at: string
+          question_id: string
+          repetitions: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          easiness_factor?: number
+          interval?: number
+          last_reviewed_at?: string | null
+          next_review_at?: string
+          question_id: string
+          repetitions?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          easiness_factor?: number
+          interval?: number
+          last_reviewed_at?: string | null
+          next_review_at?: string
+          question_id?: string
+          repetitions?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_flashcard_stats_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "flashcard_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_learning_paths: {
+        Row: {
+          generated_at: string
+          id: string
+          roadmap: Json
+          summary: string | null
+          user_id: string
+        }
+        Insert: {
+          generated_at?: string
+          id?: string
+          roadmap?: Json
+          summary?: string | null
+          user_id: string
+        }
+        Update: {
+          generated_at?: string
+          id?: string
+          roadmap?: Json
+          summary?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_lesson_progress: {
         Row: {
@@ -776,14 +1069,42 @@ export type Database = {
         Args: { amount: number; transaction_label: string }
         Returns: boolean
       }
-      deduct_ai_credits: { Args: { amount?: number }; Returns: undefined }
-      deduct_credits: {
-        Args: { amount: number; transaction_label: string }
-        Returns: boolean
+      close_tournament_and_award_winners: {
+        Args: { p_tournament_id: string }
+        Returns: undefined
       }
+      deduct_ai_credits: { Args: { amount?: number }; Returns: undefined }
+      deduct_credits:
+        | {
+            Args: { amount: number; reason: string; transaction_type?: string }
+            Returns: undefined
+          }
+        | {
+            Args: { amount: number; transaction_label: string }
+            Returns: boolean
+          }
       generate_referral_code: {
         Args: { user_id_param: string }
         Returns: string
+      }
+      get_active_tournament: {
+        Args: never
+        Returns: {
+          created_at: string
+          description: string | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          start_date: string
+          theme: string
+          title: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "tournaments"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_league_for_xp: { Args: { xp_amount: number }; Returns: string }
       has_role: {
@@ -794,6 +1115,10 @@ export type Database = {
         Returns: boolean
       }
       reset_monthly_xp: { Args: never; Returns: undefined }
+      submit_tournament_score: {
+        Args: { p_points: number; p_tournament_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
