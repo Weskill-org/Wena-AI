@@ -208,13 +208,10 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                         setIsLoading(false);
                         setVolume(0);
                         setTranscript(prev => [...prev, "System: Disconnected."]);
-                        // Reset client so we can re-init with new role if needed next time
                         liveClient.current = null;
 
-                        if (billingInterval.current) {
-                            clearInterval(billingInterval.current);
-                            billingInterval.current = null;
-                        }
+                        if (billingInterval.current) { clearInterval(billingInterval.current); billingInterval.current = null; }
+                        if (timerInterval.current) { clearInterval(timerInterval.current); timerInterval.current = null; }
                     },
                     onVolumeChange: (vol) => {
                         setVolume(vol);
