@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import VoiceOrb from '@/components/ui/VoiceOrb';
+import AiAvatar from '@/components/ui/AiAvatar';
 import { GeminiLiveClient } from '@/services/liveService';
 import { Sparkles, X } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
