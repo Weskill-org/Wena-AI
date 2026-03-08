@@ -585,6 +585,9 @@ function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume
           opacity={0.8}
         />
       </Sphere>
+
+      {/* Sleeping Zzz */}
+      {isSleeping && <SleepingZzz />}
     </group>
   );
 }
