@@ -47,7 +47,7 @@ export const personaService = {
         }
 
         // Check if reset is needed
-        if (data.last_reset_date !== todayStr) {
+        if ((data as any).last_reset_date !== todayStr) {
             console.log("Resetting daily limit for new day (IST):", todayStr);
             // @ts-ignore
             const { error: updateError } = await supabase
