@@ -81,8 +81,11 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
     const [volume, setVolume] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [transcript, setTranscript] = useState<string[]>([]);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [sessionSeconds, setSessionSeconds] = useState(0);
     const liveClient = useRef<GeminiLiveClient | null>(null);
     const billingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+    const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
         // Cleanup on unmount
