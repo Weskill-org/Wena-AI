@@ -12,7 +12,7 @@ interface AiAvatarProps {
 
 /* ── Animated Eye with Blinking ───────────────────────────── */
 function Eye({ position, isActive, volume }: { position: [number, number, number]; isActive: boolean; volume: number }) {
-  const irisRef = useRef<THREE.Mesh>(null!);
+  const irisRef = useRef<THREE.Group>(null!);
   const pupilRef = useRef<THREE.Mesh>(null!);
   const lidRef = useRef<THREE.Mesh>(null!);
   const blinkTimer = useRef(0);
