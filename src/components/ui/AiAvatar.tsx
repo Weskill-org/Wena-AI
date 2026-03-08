@@ -99,7 +99,6 @@ const AiAvatar: React.FC<AiAvatarProps> = ({ isActive, volume, onClick, isLoadin
             : isSleeping
               ? { 
                   scale: [0.97, 0.99, 0.97],
-                  rotate: [0, 1, 0],
                   y: [0, 3, 0],
                 }
               : isActive
