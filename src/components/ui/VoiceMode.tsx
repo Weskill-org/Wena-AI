@@ -232,7 +232,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     </p>
                 </div>
 
-                <VoiceOrb
+                <AiAvatar
                     isActive={active}
                     volume={volume}
                     onClick={handleToggle}

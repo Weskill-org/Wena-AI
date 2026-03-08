@@ -119,10 +119,10 @@ const CurriculumVoiceSession: React.FC<CurriculumVoiceSessionProps> = ({ moduleT
                     </p>
                 </div>
 
-                <VoiceOrb
+                <AiAvatar
                     isActive={isActive}
                     volume={volume}
-                    onClick={() => { }} // Disable manual toggle here, controlled by parent/prop
+                    onClick={() => { }}
                 />
 
                 {error && (
