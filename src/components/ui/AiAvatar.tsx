@@ -1,6 +1,6 @@
 import React, { Suspense, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Sphere, RoundedBox, Environment, Text } from '@react-three/drei';
+import { Sphere, Environment, Text } from '@react-three/drei';
 import * as THREE from 'three';
 
 interface AiAvatarProps {
@@ -10,196 +10,187 @@ interface AiAvatarProps {
   isLoading?: boolean;
 }
 
-/* ── Custom Skin Shader Material ─────────────────────────── */
-function SkinMaterial({ color, roughness = 0.45, subsurface = 0.3, emissiveIntensity = 0.02 }: {
+/* ── Skin Material with SSS simulation ──────────────────── */
+function SkinMaterial({ color, roughness = 0.45 }: {
   color: THREE.Color | string;
   roughness?: number;
-  subsurface?: number;
-  emissiveIntensity?: number;
 }) {
   const col = useMemo(() => typeof color === 'string' ? new THREE.Color(color) : color, [color]);
-  const warmTint = useMemo(() => new THREE.Color('#ff9966').multiplyScalar(subsurface), [subsurface]);
+  const warmTint = useMemo(() => new THREE.Color('#e8a088'), []);
 
   return (
     <meshPhysicalMaterial
       color={col}
       roughness={roughness}
-      metalness={0.02}
-      clearcoat={0.15}
-      clearcoatRoughness={0.6}
-      sheen={0.4}
+      metalness={0.01}
+      clearcoat={0.08}
+      clearcoatRoughness={0.7}
+      sheen={0.5}
       sheenColor={warmTint}
-      sheenRoughness={0.5}
-      emissive={col}
-      emissiveIntensity={emissiveIntensity}
+      sheenRoughness={0.4}
+      envMapIntensity={0.6}
     />
   );
 }
 
-/* ── Animated Eye with Blinking ───────────────────────────── */
-function Eye({ position, isActive, volume, isSleeping }: { position: [number, number, number]; isActive: boolean; volume: number; isSleeping?: boolean }) {
-  const irisRef = useRef<THREE.Group>(null!);
+/* ── Realistic Eye ──────────────────────────────────────── */
+function Eye({ position, isActive, volume, isSleeping }: {
+  position: [number, number, number];
+  isActive: boolean;
+  volume: number;
+  isSleeping?: boolean;
+}) {
+  const irisGroupRef = useRef<THREE.Group>(null!);
   const pupilRef = useRef<THREE.Mesh>(null!);
   const upperLidRef = useRef<THREE.Mesh>(null!);
   const lowerLidRef = useRef<THREE.Mesh>(null!);
+  const corneaRef = useRef<THREE.Mesh>(null!);
   const blinkTimer = useRef(0);
-  const blinkState = useRef(0);
+  const blinkPhase = useRef<'open' | 'closing' | 'opening'>('open');
 
-  const irisColor = useMemo(() => new THREE.Color('#2d8fad'), []);
-  const irisRing = useMemo(() => new THREE.Color('#1a6680'), []);
-  const skinTone = useMemo(() => new THREE.Color('#d4a574'), []);
+  const irisColor = useMemo(() => new THREE.Color('#1a7a8a'), []);
+  const irisEdge = useMemo(() => new THREE.Color('#0d4f5c'), []);
+  const skinCol = useMemo(() => new THREE.Color('#c49a78'), []);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     const dt = state.clock.getDelta();
 
-    // Sleeping: eyes fully closed — lids cover entire eye
-    if (isSleeping) {
-      upperLidRef.current.scale.y = THREE.MathUtils.lerp(upperLidRef.current.scale.y, 2.5, 0.12);
-      lowerLidRef.current.scale.y = THREE.MathUtils.lerp(lowerLidRef.current.scale.y, 1.8, 0.12);
-      // Hide iris group behind lids
-      if (irisRef.current) {
-        irisRef.current.position.z = THREE.MathUtils.lerp(irisRef.current.position.z, 0.02, 0.1);
-      }
-      if (pupilRef.current) {
-        pupilRef.current.scale.setScalar(THREE.MathUtils.lerp(pupilRef.current.scale.x, 0.3, 0.05));
-      }
-      return;
-    }
-    // When waking up, reset iris z
-    if (irisRef.current && irisRef.current.position.z < 0.05) {
-      irisRef.current.position.z = THREE.MathUtils.lerp(irisRef.current.position.z, 0.088, 0.05);
-    }
+    // === Eyelid logic ===
+    let upperTarget = 0;
+    let lowerTarget = 0;
 
-    // Realistic blinking — ~every 3-5 seconds, fast close, slower open
-    blinkTimer.current += dt;
-    if (blinkState.current === 0 && blinkTimer.current > 2.5 + Math.random() * 3) {
-      blinkState.current = 1;
-      blinkTimer.current = 0;
-    }
-    if (blinkState.current === 1) {
-      upperLidRef.current.scale.y = THREE.MathUtils.lerp(upperLidRef.current.scale.y, 1.3, 0.45);
-      lowerLidRef.current.scale.y = THREE.MathUtils.lerp(lowerLidRef.current.scale.y, 0.8, 0.35);
-      if (upperLidRef.current.scale.y > 1.2) blinkState.current = 2;
-    } else if (blinkState.current === 2) {
-      upperLidRef.current.scale.y = THREE.MathUtils.lerp(upperLidRef.current.scale.y, 0, 0.18);
-      lowerLidRef.current.scale.y = THREE.MathUtils.lerp(lowerLidRef.current.scale.y, 0, 0.15);
-      if (upperLidRef.current.scale.y < 0.05) {
-        upperLidRef.current.scale.y = 0;
-        lowerLidRef.current.scale.y = 0;
-        blinkState.current = 0;
+    if (isSleeping) {
+      upperTarget = 1.6;
+      lowerTarget = 1.2;
+    } else {
+      // Blinking
+      blinkTimer.current += dt;
+      if (blinkPhase.current === 'open' && blinkTimer.current > 2.8 + Math.random() * 2.5) {
+        blinkPhase.current = 'closing';
         blinkTimer.current = 0;
       }
+      if (blinkPhase.current === 'closing') {
+        upperTarget = 1.5;
+        lowerTarget = 0.7;
+        if (upperLidRef.current.scale.y > 1.3) {
+          blinkPhase.current = 'opening';
+        }
+      } else if (blinkPhase.current === 'opening') {
+        upperTarget = 0;
+        lowerTarget = 0;
+        if (upperLidRef.current.scale.y < 0.05) {
+          upperLidRef.current.scale.y = 0;
+          lowerLidRef.current.scale.y = 0;
+          blinkPhase.current = 'open';
+          blinkTimer.current = 0;
+        }
+      }
     }
 
-    // Subtle saccadic eye movement (micro-saccades for realism)
-    if (irisRef.current) {
-      const saccade = Math.sin(t * 8) * 0.001 + Math.sin(t * 0.3) * 0.015;
-      irisRef.current.position.x = saccade;
-      irisRef.current.position.y = Math.cos(t * 0.5) * 0.008 + Math.sin(t * 6) * 0.001;
+    const lidSpeed = blinkPhase.current === 'closing' ? 0.4 : (isSleeping ? 0.08 : 0.15);
+    upperLidRef.current.scale.y = THREE.MathUtils.lerp(upperLidRef.current.scale.y, upperTarget, lidSpeed);
+    lowerLidRef.current.scale.y = THREE.MathUtils.lerp(lowerLidRef.current.scale.y, lowerTarget, lidSpeed);
+
+    // === Eye movement (micro-saccades) ===
+    if (irisGroupRef.current && !isSleeping) {
+      const sx = Math.sin(t * 0.4) * 0.012 + Math.sin(t * 7) * 0.002;
+      const sy = Math.cos(t * 0.55) * 0.008 + Math.cos(t * 5) * 0.001;
+      irisGroupRef.current.position.x = sx;
+      irisGroupRef.current.position.y = sy;
     }
 
-    // Pupil dilation
+    // === Pupil dilation ===
     if (pupilRef.current) {
-      const targetScale = isActive ? 0.95 + volume * 0.25 : 0.7;
-      pupilRef.current.scale.setScalar(
-        THREE.MathUtils.lerp(pupilRef.current.scale.x, targetScale, 0.08)
-      );
+      const ps = isSleeping ? 0.5 : (isActive ? 0.85 + volume * 0.3 : 0.7);
+      pupilRef.current.scale.setScalar(THREE.MathUtils.lerp(pupilRef.current.scale.x, ps, 0.06));
+    }
+
+    // === Cornea shimmer ===
+    if (corneaRef.current) {
+      const mat = corneaRef.current.material as THREE.MeshPhysicalMaterial;
+      mat.opacity = isSleeping ? 0.02 : 0.12;
     }
   });
 
   return (
     <group position={position}>
-      {/* Eyeball — slightly glossy wet look */}
-      <Sphere args={[0.125, 48, 48]}>
+      {/* Eyeball */}
+      <Sphere args={[0.13, 48, 48]}>
         <meshPhysicalMaterial
-          color="#f5f0ea"
-          roughness={0.05}
-          metalness={0.0}
-          clearcoat={1.0}
+          color="#f0ece6"
+          roughness={0.08}
+          metalness={0}
+          clearcoat={1}
           clearcoatRoughness={0.05}
-          sheen={0}
+          envMapIntensity={0.3}
         />
       </Sphere>
 
-      {/* Sclera blood vessel hint (very subtle red tint ring) */}
-      <Sphere args={[0.126, 32, 32]} scale={[1, 1, 0.5]}>
-        <meshStandardMaterial color="#eee0d8" transparent opacity={0.15} roughness={0.3} />
-      </Sphere>
-
-      {/* Iris group */}
-      <group ref={irisRef}>
-        {/* Iris — outer ring darker */}
-        <Sphere args={[0.072, 48, 48]} position={[0, 0, 0.088]}>
+      {/* Iris + Pupil group */}
+      <group ref={irisGroupRef}>
+        {/* Iris outer ring */}
+        <Sphere args={[0.065, 48, 48]} position={[0, 0, 0.09]}>
           <meshPhysicalMaterial
-            color={irisRing}
-            roughness={0.15}
-            metalness={0.05}
-            clearcoat={0.8}
-            emissive={irisColor}
-            emissiveIntensity={isActive ? 0.4 + volume * 0.8 : 0.1}
-          />
-        </Sphere>
-
-        {/* Iris — inner lighter part */}
-        <Sphere args={[0.055, 48, 48]} position={[0, 0, 0.095]}>
-          <meshPhysicalMaterial
-            color={irisColor}
-            roughness={0.1}
+            color={irisEdge}
+            roughness={0.12}
             metalness={0.05}
             clearcoat={0.9}
             emissive={irisColor}
-            emissiveIntensity={isActive ? 0.5 + volume * 1.0 : 0.15}
+            emissiveIntensity={isActive ? 0.35 + volume * 0.6 : 0.08}
+            envMapIntensity={0.5}
+          />
+        </Sphere>
+
+        {/* Iris inner */}
+        <Sphere args={[0.048, 48, 48]} position={[0, 0, 0.1]}>
+          <meshPhysicalMaterial
+            color={irisColor}
+            roughness={0.08}
+            metalness={0.03}
+            clearcoat={1}
+            emissive={irisColor}
+            emissiveIntensity={isActive ? 0.4 + volume * 0.8 : 0.12}
+            envMapIntensity={0.6}
           />
         </Sphere>
 
         {/* Pupil */}
-        <Sphere ref={pupilRef} args={[0.032, 32, 32]} position={[0, 0, 0.115]}>
-          <meshStandardMaterial color="#050505" roughness={0.3} metalness={0} />
+        <Sphere ref={pupilRef} args={[0.028, 32, 32]} position={[0, 0, 0.115]}>
+          <meshStandardMaterial color="#020202" roughness={0.4} />
         </Sphere>
 
-        {/* Eye specular highlights — two dots for realism */}
-        <Sphere args={[0.014, 16, 16]} position={[0.02, 0.02, 0.13]}>
-          <meshStandardMaterial
-            color="white"
-            emissive="white"
-            emissiveIntensity={1.2}
+        {/* Cornea dome — transparent refraction layer */}
+        <Sphere ref={corneaRef} args={[0.095, 48, 48]} position={[0, 0, 0.06]}>
+          <meshPhysicalMaterial
+            color="#ffffff"
             transparent
-            opacity={0.95}
-          />
-        </Sphere>
-        <Sphere args={[0.007, 12, 12]} position={[-0.015, -0.01, 0.13]}>
-          <meshStandardMaterial
-            color="white"
-            emissive="white"
-            emissiveIntensity={0.6}
-            transparent
-            opacity={0.6}
+            opacity={0.12}
+            roughness={0}
+            metalness={0}
+            clearcoat={1}
+            clearcoatRoughness={0}
+            envMapIntensity={1.5}
+            ior={1.4}
           />
         </Sphere>
       </group>
 
       {/* Upper eyelid */}
-      <mesh ref={upperLidRef} position={[0, 0.055, 0.05]} scale={[1, 0, 1]}>
-        <sphereGeometry args={[0.135, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
-        <SkinMaterial color={skinTone} roughness={0.55} />
+      <mesh ref={upperLidRef} position={[0, 0.05, 0.04]} scale={[1, 0, 1]}>
+        <sphereGeometry args={[0.14, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+        <SkinMaterial color={skinCol} roughness={0.55} />
       </mesh>
 
       {/* Lower eyelid */}
-      <mesh ref={lowerLidRef} position={[0, -0.055, 0.05]} scale={[1, 0, 1]} rotation={[Math.PI, 0, 0]}>
-        <sphereGeometry args={[0.135, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.35]} />
-        <SkinMaterial color={skinTone} roughness={0.55} />
+      <mesh ref={lowerLidRef} position={[0, -0.05, 0.04]} scale={[1, 0, 1]} rotation={[Math.PI, 0, 0]}>
+        <sphereGeometry args={[0.14, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.35]} />
+        <SkinMaterial color={skinCol} roughness={0.55} />
       </mesh>
 
-      {/* Eyelid crease (upper) */}
-      <mesh position={[0, 0.1, 0.03]}>
-        <torusGeometry args={[0.11, 0.008, 8, 32, Math.PI]} />
-        <meshStandardMaterial color="#b8906e" transparent opacity={0.3} roughness={0.8} />
-      </mesh>
-
-      {/* Eyelash hint (upper) */}
-      <mesh position={[0, 0.06, 0.09]}>
-        <torusGeometry args={[0.1, 0.005, 6, 24, Math.PI]} />
+      {/* Lash line hint */}
+      <mesh position={[0, 0.055, 0.085]}>
+        <torusGeometry args={[0.095, 0.004, 6, 24, Math.PI]} />
         <meshStandardMaterial color="#3a2a1a" roughness={0.9} />
       </mesh>
     </group>
@@ -207,220 +198,171 @@ function Eye({ position, isActive, volume, isSleeping }: { position: [number, nu
 }
 
 /* ── Eyebrow ──────────────────────────────────────────────── */
-function Eyebrow({ position, mirrorX, isActive, volume }: { position: [number, number, number]; mirrorX?: boolean; isActive: boolean; volume: number }) {
+function Eyebrow({ position, mirrorX, isActive, volume }: {
+  position: [number, number, number];
+  mirrorX?: boolean;
+  isActive: boolean;
+  volume: number;
+}) {
   const ref = useRef<THREE.Group>(null!);
-  const skinTone = useMemo(() => new THREE.Color('#d4a574'), []);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     if (ref.current) {
-      const raise = isActive ? 0.015 + volume * 0.03 : Math.sin(t * 0.6) * 0.003;
+      const raise = isActive ? 0.01 + volume * 0.025 : Math.sin(t * 0.5) * 0.003;
       ref.current.position.y = position[1] + raise;
-      ref.current.rotation.z = (mirrorX ? -1 : 1) * (isActive ? -0.04 - volume * 0.06 : Math.sin(t * 0.4) * 0.015);
+      ref.current.rotation.z = (mirrorX ? -1 : 1) * (isActive ? -0.03 - volume * 0.04 : Math.sin(t * 0.35) * 0.01);
     }
   });
 
   return (
     <group ref={ref} position={position}>
-      {/* Main brow shape — tapered */}
-      <RoundedBox args={[0.2, 0.028, 0.05]} radius={0.012} smoothness={4}>
-        <meshStandardMaterial color="#5a3e28" roughness={0.85} />
-      </RoundedBox>
-      {/* Brow ridge underneath */}
-      <mesh position={[0, -0.015, 0.01]}>
-        <sphereGeometry args={[0.1, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.3]} />
-        <SkinMaterial color={skinTone} roughness={0.5} />
+      <mesh>
+        <capsuleGeometry args={[0.012, 0.16, 4, 12]} />
+        <meshStandardMaterial color="#4a3220" roughness={0.85} />
       </mesh>
     </group>
   );
 }
 
-/* ── Lips Component ─────────────────────────────────────── */
+/* ── Lips ─────────────────────────────────────────────────── */
 function Lips({ isActive, volume, mouthTopRef, mouthBottomRef }: {
   isActive: boolean;
   volume: number;
   mouthTopRef: React.RefObject<THREE.Mesh>;
   mouthBottomRef: React.RefObject<THREE.Mesh>;
 }) {
-  const lipColor = useMemo(() => new THREE.Color('#c47a6a'), []);
-  const innerMouthColor = useMemo(() => new THREE.Color('#2a0808'), []);
+  const lipColor = useMemo(() => new THREE.Color('#b86e60'), []);
 
   return (
     <group>
-      {/* Upper lip — Cupid's bow shape */}
-      <RoundedBox
-        ref={mouthTopRef}
-        args={[0.22, 0.032, 0.07]}
-        radius={0.015}
-        smoothness={4}
-        position={[0, -0.27, 0.88]}
-      >
-        <meshPhysicalMaterial
-          color={lipColor}
-          roughness={0.3}
-          metalness={0.0}
-          clearcoat={0.4}
-          clearcoatRoughness={0.3}
-          sheen={0.6}
-          sheenColor={new THREE.Color('#ff8888')}
-          sheenRoughness={0.3}
-        />
-      </RoundedBox>
-
-      {/* Cupid's bow dip */}
-      <Sphere args={[0.015, 16, 16]} position={[0, -0.255, 0.92]}>
-        <meshPhysicalMaterial color={lipColor} roughness={0.3} clearcoat={0.3} />
-      </Sphere>
-
-      {/* Lower lip — fuller */}
-      <RoundedBox
-        ref={mouthBottomRef}
-        args={[0.19, 0.038, 0.065]}
-        radius={0.018}
-        smoothness={4}
-        position={[0, -0.31, 0.87]}
-      >
+      {/* Upper lip */}
+      <Sphere ref={mouthTopRef} args={[0.08, 32, 16]} position={[0, -0.28, 0.88]} scale={[1.5, 0.35, 0.7]}>
         <meshPhysicalMaterial
           color={lipColor}
           roughness={0.25}
-          metalness={0.0}
           clearcoat={0.5}
-          clearcoatRoughness={0.25}
-          sheen={0.7}
-          sheenColor={new THREE.Color('#ff8888')}
-          sheenRoughness={0.25}
+          clearcoatRoughness={0.2}
+          sheen={0.6}
+          sheenColor={new THREE.Color('#e08888')}
+          sheenRoughness={0.3}
+          envMapIntensity={0.4}
         />
-      </RoundedBox>
+      </Sphere>
 
-      {/* Lip line / mouth seam */}
-      <mesh position={[0, -0.29, 0.91]}>
-        <boxGeometry args={[0.18, 0.003, 0.02]} />
-        <meshStandardMaterial color="#8a4a3a" roughness={0.8} />
+      {/* Lower lip — slightly fuller */}
+      <Sphere ref={mouthBottomRef} args={[0.08, 32, 16]} position={[0, -0.32, 0.87]} scale={[1.35, 0.4, 0.65]}>
+        <meshPhysicalMaterial
+          color={lipColor}
+          roughness={0.2}
+          clearcoat={0.6}
+          clearcoatRoughness={0.15}
+          sheen={0.7}
+          sheenColor={new THREE.Color('#e08888')}
+          sheenRoughness={0.25}
+          envMapIntensity={0.5}
+        />
+      </Sphere>
+
+      {/* Lip seam */}
+      <mesh position={[0, -0.3, 0.91]}>
+        <boxGeometry args={[0.14, 0.002, 0.01]} />
+        <meshStandardMaterial color="#7a3f35" roughness={0.8} />
       </mesh>
 
       {/* Mouth interior */}
-      <Sphere args={[0.09, 24, 24]} position={[0, -0.29, 0.8]} scale={[1.6, 0.5, 0.5]}>
-        <meshStandardMaterial color={innerMouthColor} roughness={0.95} />
+      <Sphere args={[0.07, 24, 24]} position={[0, -0.3, 0.78]} scale={[1.4, 0.45, 0.4]}>
+        <meshStandardMaterial color="#1a0505" roughness={0.95} />
       </Sphere>
-
-      {/* Teeth hint — barely visible */}
-      <mesh position={[0, -0.275, 0.84]}>
-        <boxGeometry args={[0.12, 0.02, 0.02]} />
-        <meshStandardMaterial color="#f0ebe0" roughness={0.3} metalness={0} />
-      </mesh>
     </group>
   );
 }
 
-/* ── Nose Component ─────────────────────────────────────── */
+/* ── Nose ─────────────────────────────────────────────────── */
 function Nose() {
-  const skinTone = useMemo(() => new THREE.Color('#d4a574'), []);
-  const shadowTone = useMemo(() => new THREE.Color('#b8906e'), []);
+  const skin = useMemo(() => new THREE.Color('#c49a78'), []);
 
   return (
     <group>
-      {/* Nose bridge */}
-      <RoundedBox args={[0.065, 0.22, 0.1]} radius={0.03} smoothness={4} position={[0, 0.04, 0.9]}>
-        <SkinMaterial color={skinTone} roughness={0.5} />
-      </RoundedBox>
-
-      {/* Nose tip — rounded and slightly bulbous */}
-      <Sphere args={[0.06, 32, 32]} position={[0, -0.08, 0.96]}>
-        <SkinMaterial color={skinTone} roughness={0.4} subsurface={0.4} />
-      </Sphere>
-
-      {/* Nose wings / alae */}
-      <Sphere args={[0.035, 24, 24]} position={[-0.05, -0.07, 0.93]}>
-        <SkinMaterial color={skinTone} roughness={0.5} />
-      </Sphere>
-      <Sphere args={[0.035, 24, 24]} position={[0.05, -0.07, 0.93]}>
-        <SkinMaterial color={skinTone} roughness={0.5} />
-      </Sphere>
-
-      {/* Nostrils — darker */}
-      <Sphere args={[0.018, 16, 16]} position={[-0.035, -0.09, 0.94]}>
-        <meshStandardMaterial color="#6a4a3a" roughness={0.9} />
-      </Sphere>
-      <Sphere args={[0.018, 16, 16]} position={[0.035, -0.09, 0.94]}>
-        <meshStandardMaterial color="#6a4a3a" roughness={0.9} />
-      </Sphere>
-
-      {/* Nasolabial folds (subtle shadow lines from nose to mouth) */}
-      <mesh position={[-0.12, -0.16, 0.87]} rotation={[0, 0.15, -0.3]}>
-        <boxGeometry args={[0.01, 0.18, 0.01]} />
-        <meshStandardMaterial color={shadowTone} transparent opacity={0.2} roughness={0.8} />
+      {/* Nose bridge — single smooth shape */}
+      <mesh position={[0, 0.02, 0.88]}>
+        <capsuleGeometry args={[0.025, 0.18, 8, 16]} />
+        <SkinMaterial color={skin} roughness={0.48} />
       </mesh>
-      <mesh position={[0.12, -0.16, 0.87]} rotation={[0, -0.15, 0.3]}>
-        <boxGeometry args={[0.01, 0.18, 0.01]} />
-        <meshStandardMaterial color={shadowTone} transparent opacity={0.2} roughness={0.8} />
-      </mesh>
+
+      {/* Nose tip */}
+      <Sphere args={[0.055, 32, 32]} position={[0, -0.09, 0.95]}>
+        <SkinMaterial color={skin} roughness={0.38} />
+      </Sphere>
+
+      {/* Nose wings */}
+      <Sphere args={[0.03, 24, 24]} position={[-0.045, -0.08, 0.92]}>
+        <SkinMaterial color={skin} roughness={0.5} />
+      </Sphere>
+      <Sphere args={[0.03, 24, 24]} position={[0.045, -0.08, 0.92]}>
+        <SkinMaterial color={skin} roughness={0.5} />
+      </Sphere>
+
+      {/* Nostrils */}
+      <Sphere args={[0.014, 12, 12]} position={[-0.028, -0.095, 0.93]}>
+        <meshStandardMaterial color="#5a3a2a" roughness={0.9} />
+      </Sphere>
+      <Sphere args={[0.014, 12, 12]} position={[0.028, -0.095, 0.93]}>
+        <meshStandardMaterial color="#5a3a2a" roughness={0.9} />
+      </Sphere>
     </group>
   );
 }
 
-/* ── Ear Component ──────────────────────────────────────── */
+/* ── Ear ──────────────────────────────────────────────────── */
 function Ear({ side }: { side: 'left' | 'right' }) {
-  const x = side === 'left' ? -0.86 : 0.86;
-  const skinTone = useMemo(() => new THREE.Color('#d4a574'), []);
-  const innerTone = useMemo(() => new THREE.Color('#c49070'), []);
+  const x = side === 'left' ? -0.84 : 0.84;
+  const skin = useMemo(() => new THREE.Color('#c49a78'), []);
 
   return (
     <group position={[x, 0.05, -0.05]}>
-      {/* Outer ear / helix */}
-      <Sphere args={[0.13, 24, 24]} scale={[0.35, 1, 0.65]}>
-        <SkinMaterial color={skinTone} roughness={0.55} />
+      <Sphere args={[0.12, 24, 24]} scale={[0.3, 0.9, 0.6]}>
+        <SkinMaterial color={skin} roughness={0.55} />
       </Sphere>
-      {/* Inner ear / concha */}
-      <Sphere args={[0.06, 16, 16]} position={[side === 'left' ? 0.02 : -0.02, 0, 0.02]} scale={[0.3, 0.7, 0.5]}>
-        <SkinMaterial color={innerTone} roughness={0.7} />
-      </Sphere>
-      {/* Earlobe */}
-      <Sphere args={[0.04, 16, 16]} position={[0, -0.1, 0.02]}>
-        <SkinMaterial color={skinTone} roughness={0.5} subsurface={0.5} />
+      <Sphere args={[0.04, 16, 16]} position={[0, -0.09, 0.02]}>
+        <SkinMaterial color={skin} roughness={0.5} />
       </Sphere>
     </group>
   );
 }
 
-/* ── Sleeping Zzz Particles ───────────────────────────────── */
+/* ── Sleeping Zzz ─────────────────────────────────────────── */
 function ZLetter({ delay, startX }: { delay: number; startX: number }) {
   const ref = useRef<THREE.Group>(null!);
-  const timeOffset = useRef(delay);
+  const offset = useRef(delay);
 
   useFrame((state) => {
-    const t = (state.clock.elapsedTime + timeOffset.current) % 4;
-    const progress = t / 4;
+    const t = (state.clock.elapsedTime + offset.current) % 4;
+    const p = t / 4;
     if (ref.current) {
-      ref.current.position.x = startX + Math.sin(progress * Math.PI * 2) * 0.15;
-      ref.current.position.y = 0.4 + progress * 1.2;
+      ref.current.position.x = startX + Math.sin(p * Math.PI * 2) * 0.12;
+      ref.current.position.y = 0.5 + p * 1.0;
       ref.current.position.z = 1.0;
-      const scale = 0.15 + progress * 0.25;
-      ref.current.scale.setScalar(scale);
-      // Fade in then out
-      const opacity = progress < 0.15 ? progress / 0.15 : progress > 0.75 ? (1 - progress) / 0.25 : 1;
-      const mat = ref.current.children[0] as any;
-      if (mat?.material) {
-        mat.material.opacity = opacity * 0.7;
+      ref.current.scale.setScalar(0.12 + p * 0.2);
+      ref.current.rotation.z = Math.sin(p * Math.PI) * 0.3;
+      const child = ref.current.children[0] as any;
+      if (child?.material) {
+        const fade = p < 0.15 ? p / 0.15 : p > 0.75 ? (1 - p) / 0.25 : 1;
+        child.material.opacity = fade * 0.6;
       }
     }
   });
 
   return (
     <group ref={ref}>
-      <Text
-        fontSize={0.2}
-        color="#4ab8d4"
-        anchorX="center"
-        anchorY="middle"
-        font={undefined}
-      >
+      <Text fontSize={0.2} color="#4ab8d4" anchorX="center" anchorY="middle" font={undefined}>
         Z
         <meshStandardMaterial
           color="#4ab8d4"
           emissive={new THREE.Color('#4ab8d4')}
-          emissiveIntensity={0.8}
+          emissiveIntensity={0.6}
           transparent
-          opacity={0.7}
+          opacity={0.6}
         />
       </Text>
     </group>
@@ -437,215 +379,164 @@ function SleepingZzz() {
   );
 }
 
-/* ── 3D Head ─────────────────────────────────────────────── */
-function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume: number; isLoading: boolean }) {
+/* ── Fresnel Rim Glow ─────────────────────────────────────── */
+function RimGlow({ isActive, volume }: { isActive: boolean; volume: number }) {
+  const ref = useRef<THREE.Mesh>(null!);
+  const glowColor = useMemo(() => new THREE.Color('#4ab8d4'), []);
+
+  useFrame(() => {
+    if (ref.current) {
+      const mat = ref.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = isActive ? 0.15 + volume * 0.3 : 0.05;
+    }
+  });
+
+  return (
+    <Sphere ref={ref} args={[1.02, 48, 48]} scale={[0.9, 1.03, 0.92]}>
+      <meshStandardMaterial
+        color={glowColor}
+        transparent
+        opacity={0.03}
+        emissive={glowColor}
+        emissiveIntensity={0.05}
+        side={THREE.BackSide}
+      />
+    </Sphere>
+  );
+}
+
+/* ── 3D Head (Clean, Minimal Primitives) ─────────────────── */
+function AvatarHead({ isActive, volume, isLoading }: {
+  isActive: boolean;
+  volume: number;
+  isLoading: boolean;
+}) {
   const groupRef = useRef<THREE.Group>(null!);
   const mouthTopRef = useRef<THREE.Mesh>(null!);
   const mouthBottomRef = useRef<THREE.Mesh>(null!);
-  const glowRef = useRef<THREE.Mesh>(null!);
   const smoothVol = useRef(0);
-  const breathRef = useRef(0);
 
-  const skinTone = useMemo(() => new THREE.Color('#d4a574'), []);
-  const skinHighlight = useMemo(() => new THREE.Color('#e0b890'), []);
-  const skinShadow = useMemo(() => new THREE.Color('#b8906e'), []);
-  const glowColor = useMemo(() => new THREE.Color('#4ab8d4'), []);
+  const skinBase = useMemo(() => new THREE.Color('#c49a78'), []);
+  const skinLight = useMemo(() => new THREE.Color('#d4aa8a'), []);
+  const skinDark = useMemo(() => new THREE.Color('#a87e62'), []);
   const isSleeping = !isActive && !isLoading;
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-
     smoothVol.current = THREE.MathUtils.lerp(smoothVol.current, volume, 0.1);
     const v = smoothVol.current;
 
-    // Subtle breathing
-    breathRef.current = Math.sin(t * 1.0) * 0.005;
-
-    const isSleeping = !isActive && !isLoading;
-
     if (isLoading) {
-      groupRef.current.rotation.y = t * 0.6;
-      groupRef.current.position.y = Math.sin(t * 1.5) * 0.04;
+      groupRef.current.rotation.y = t * 0.5;
+      groupRef.current.position.y = Math.sin(t * 1.5) * 0.03;
       return;
     }
 
     if (isSleeping) {
-      // Sleeping: slow breathing bob, head drooped forward and tilted
-      groupRef.current.position.y = THREE.MathUtils.lerp(
-        groupRef.current.position.y, Math.sin(t * 0.3) * 0.02 - 0.08, 0.02
-      );
-      // Head tilted to side and drooped forward
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0.1, 0.015);
-      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0.15, 0.015);
-      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0.18, 0.015);
+      // Natural sleeping pose: head droops gently
+      groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, Math.sin(t * 0.25) * 0.015 - 0.06, 0.015);
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0.15, 0.012);
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0.08, 0.01);
+      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0.1, 0.01);
+    } else if (isActive) {
+      // Active: voice-reactive micro-movements
+      groupRef.current.position.y = Math.sin(t * 0.6) * 0.03;
+      groupRef.current.rotation.y = Math.sin(t * 0.25) * 0.06;
+      groupRef.current.rotation.z = Math.sin(t * 1.3) * 0.02 * (1 + v);
+      groupRef.current.rotation.x = Math.sin(t * 0.9) * 0.015 + v * 0.01;
     } else {
-      // Idle: gentle float
-      groupRef.current.position.y = Math.sin(t * 0.5) * 0.05 + breathRef.current;
-      groupRef.current.rotation.y = Math.sin(t * 0.2) * 0.08;
-    }
-
-    // Active: voice-driven micro-movements
-    if (isActive) {
-      groupRef.current.rotation.z = Math.sin(t * 1.5) * 0.025 * (1 + v * 1.2);
-      groupRef.current.rotation.x = Math.sin(t * 1.1) * 0.02 + v * 0.015;
-    } else if (!isSleeping) {
-      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0, 0.04);
-      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0, 0.04);
+      // Idle: gentle float with natural drift
+      groupRef.current.position.y = Math.sin(t * 0.4) * 0.04;
+      groupRef.current.rotation.y = Math.sin(t * 0.18) * 0.06;
+      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0, 0.03);
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0, 0.03);
     }
 
     // Mouth animation
     if (mouthBottomRef.current) {
-      const jawDrop = isActive ? v * 0.07 : 0;
+      const jawDrop = isActive ? v * 0.06 : 0;
       mouthBottomRef.current.position.y = THREE.MathUtils.lerp(
-        mouthBottomRef.current.position.y, -0.31 - jawDrop, 0.12
-      );
-      mouthBottomRef.current.scale.x = THREE.MathUtils.lerp(
-        mouthBottomRef.current.scale.x, 1 + v * 0.2, 0.1
-      );
-    }
-    if (mouthTopRef.current) {
-      mouthTopRef.current.scale.x = THREE.MathUtils.lerp(
-        mouthTopRef.current.scale.x, 1 + v * 0.1, 0.08
-      );
-    }
-
-    // Ambient glow
-    if (glowRef.current) {
-      const glowScale = isActive ? 1.15 + v * 0.3 : 1.08 + Math.sin(t * 0.7) * 0.02;
-      glowRef.current.scale.setScalar(
-        THREE.MathUtils.lerp(glowRef.current.scale.x, glowScale, 0.05)
-      );
-      const mat = glowRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = THREE.MathUtils.lerp(
-        mat.emissiveIntensity, isActive ? 0.2 + v * 0.4 : 0.08, 0.06
+        mouthBottomRef.current.position.y, -0.32 - jawDrop, 0.1
       );
     }
   });
 
   return (
     <group ref={groupRef}>
-      {/* Ambient glow sphere */}
-      <Sphere ref={glowRef} args={[1.1, 32, 32]} scale={1.08}>
-        <meshStandardMaterial
-          color={glowColor}
-          transparent
-          opacity={0.04}
-          emissive={glowColor}
-          emissiveIntensity={0.08}
-          side={THREE.BackSide}
-        />
+      {/* Rim glow */}
+      <RimGlow isActive={isActive} volume={smoothVol.current} />
+
+      {/* === HEAD — single clean sphere === */}
+      <Sphere args={[1, 64, 64]} scale={[0.88, 1.02, 0.9]}>
+        <SkinMaterial color={skinBase} roughness={0.48} />
       </Sphere>
 
-      {/* Cranium — slightly elongated vertically, wider at temples */}
-      <Sphere args={[1, 64, 64]} scale={[0.9, 1.04, 0.93]}>
-        <SkinMaterial color={skinTone} roughness={0.5} subsurface={0.35} />
+      {/* Forehead highlight */}
+      <Sphere args={[0.5, 32, 32]} position={[0, 0.5, 0.52]} scale={[1.3, 0.35, 0.5]}>
+        <SkinMaterial color={skinLight} roughness={0.42} />
       </Sphere>
 
-      {/* Forehead — smooth convex */}
-      <Sphere args={[0.55, 32, 32]} position={[0, 0.52, 0.55]} scale={[1.4, 0.4, 0.55]}>
-        <SkinMaterial color={skinHighlight} roughness={0.4} subsurface={0.3} />
+      {/* Cheekbones */}
+      <Sphere args={[0.16, 32, 32]} position={[-0.45, -0.05, 0.65]}>
+        <SkinMaterial color={skinLight} roughness={0.44} />
       </Sphere>
-
-      {/* Temples — slight indentation */}
-      <Sphere args={[0.15, 24, 24]} position={[-0.75, 0.3, 0.35]}>
-        <SkinMaterial color={skinShadow} roughness={0.6} />
-      </Sphere>
-      <Sphere args={[0.15, 24, 24]} position={[0.75, 0.3, 0.35]}>
-        <SkinMaterial color={skinShadow} roughness={0.6} />
-      </Sphere>
-
-      {/* Cheekbones — prominent for structure */}
-      <Sphere args={[0.2, 32, 32]} position={[-0.5, -0.05, 0.65]}>
-        <SkinMaterial color={skinHighlight} roughness={0.45} subsurface={0.4} />
-      </Sphere>
-      <Sphere args={[0.2, 32, 32]} position={[0.5, -0.05, 0.65]}>
-        <SkinMaterial color={skinHighlight} roughness={0.45} subsurface={0.4} />
-      </Sphere>
-
-      {/* Cheek flesh — softer, rounder */}
-      <Sphere args={[0.18, 24, 24]} position={[-0.42, -0.18, 0.7]}>
-        <SkinMaterial color="#daa88a" roughness={0.55} subsurface={0.5} />
-      </Sphere>
-      <Sphere args={[0.18, 24, 24]} position={[0.42, -0.18, 0.7]}>
-        <SkinMaterial color="#daa88a" roughness={0.55} subsurface={0.5} />
+      <Sphere args={[0.16, 32, 32]} position={[0.45, -0.05, 0.65]}>
+        <SkinMaterial color={skinLight} roughness={0.44} />
       </Sphere>
 
       {/* Eye sockets — subtle depth */}
-      <Sphere args={[0.17, 32, 32]} position={[-0.28, 0.2, 0.76]}>
-        <SkinMaterial color={skinShadow} roughness={0.65} />
+      <Sphere args={[0.15, 32, 32]} position={[-0.28, 0.2, 0.76]}>
+        <SkinMaterial color={skinDark} roughness={0.6} />
       </Sphere>
-      <Sphere args={[0.17, 32, 32]} position={[0.28, 0.2, 0.76]}>
-        <SkinMaterial color={skinShadow} roughness={0.65} />
+      <Sphere args={[0.15, 32, 32]} position={[0.28, 0.2, 0.76]}>
+        <SkinMaterial color={skinDark} roughness={0.6} />
       </Sphere>
 
       {/* Eyes */}
-      <Eye position={[-0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} isSleeping={!isActive && !isLoading} />
-      <Eye position={[0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} isSleeping={!isActive && !isLoading} />
+      <Eye position={[-0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} isSleeping={isSleeping} />
+      <Eye position={[0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} isSleeping={isSleeping} />
 
       {/* Eyebrows */}
-      <Eyebrow position={[-0.28, 0.4, 0.82]} isActive={isActive} volume={smoothVol.current} />
-      <Eyebrow position={[0.28, 0.4, 0.82]} mirrorX isActive={isActive} volume={smoothVol.current} />
+      <Eyebrow position={[-0.28, 0.38, 0.83]} isActive={isActive} volume={smoothVol.current} />
+      <Eyebrow position={[0.28, 0.38, 0.83]} mirrorX isActive={isActive} volume={smoothVol.current} />
 
       {/* Nose */}
       <Nose />
 
       {/* Lips */}
-      <Lips
-        isActive={isActive}
-        volume={smoothVol.current}
-        mouthTopRef={mouthTopRef}
-        mouthBottomRef={mouthBottomRef}
-      />
+      <Lips isActive={isActive} volume={smoothVol.current} mouthTopRef={mouthTopRef} mouthBottomRef={mouthBottomRef} />
 
-      {/* Philtrum (groove above upper lip) */}
-      <mesh position={[0, -0.22, 0.91]}>
-        <boxGeometry args={[0.03, 0.06, 0.01]} />
-        <meshStandardMaterial color={skinShadow} transparent opacity={0.15} roughness={0.8} />
-      </mesh>
-
-      {/* Chin — rounded and prominent */}
-      <Sphere args={[0.16, 32, 32]} position={[0, -0.55, 0.62]}>
-        <SkinMaterial color={skinTone} roughness={0.5} subsurface={0.35} />
-      </Sphere>
-      {/* Chin dimple hint */}
-      <Sphere args={[0.02, 12, 12]} position={[0, -0.52, 0.72]}>
-        <meshStandardMaterial color={skinShadow} transparent opacity={0.15} roughness={0.8} />
+      {/* Chin */}
+      <Sphere args={[0.14, 32, 32]} position={[0, -0.52, 0.6]}>
+        <SkinMaterial color={skinBase} roughness={0.5} />
       </Sphere>
 
-      {/* Jawline — angular for definition */}
-      <RoundedBox args={[0.12, 0.06, 0.35]} radius={0.03} smoothness={4} position={[-0.55, -0.4, 0.35]} rotation={[0, 0.4, 0.1]}>
-        <SkinMaterial color={skinTone} roughness={0.55} />
-      </RoundedBox>
-      <RoundedBox args={[0.12, 0.06, 0.35]} radius={0.03} smoothness={4} position={[0.55, -0.4, 0.35]} rotation={[0, -0.4, -0.1]}>
-        <SkinMaterial color={skinTone} roughness={0.55} />
-      </RoundedBox>
-
-      {/* Under-jaw / neck transition */}
-      <Sphere args={[0.35, 24, 24]} position={[0, -0.7, 0.2]} scale={[1.2, 0.5, 0.8]}>
-        <SkinMaterial color={skinShadow} roughness={0.6} />
+      {/* Jaw transition */}
+      <Sphere args={[0.3, 24, 24]} position={[0, -0.65, 0.15]} scale={[1.1, 0.45, 0.75]}>
+        <SkinMaterial color={skinDark} roughness={0.58} />
       </Sphere>
 
       {/* Ears */}
       <Ear side="left" />
       <Ear side="right" />
 
-      {/* Subtle AI indicator — soft glowing dot on temple */}
-      <Sphere args={[0.02, 16, 16]} position={[-0.82, 0.25, 0.25]}>
+      {/* AI temple indicators */}
+      <Sphere args={[0.018, 16, 16]} position={[-0.8, 0.25, 0.25]}>
         <meshStandardMaterial
           color="#4ab8d4"
           emissive={new THREE.Color('#4ab8d4')}
-          emissiveIntensity={isActive ? 2.0 : 0.5}
+          emissiveIntensity={isActive ? 1.8 : 0.4}
           transparent
-          opacity={0.8}
+          opacity={0.75}
         />
       </Sphere>
-      <Sphere args={[0.02, 16, 16]} position={[0.82, 0.25, 0.25]}>
+      <Sphere args={[0.018, 16, 16]} position={[0.8, 0.25, 0.25]}>
         <meshStandardMaterial
           color="#4ab8d4"
           emissive={new THREE.Color('#4ab8d4')}
-          emissiveIntensity={isActive ? 2.0 : 0.5}
+          emissiveIntensity={isActive ? 1.8 : 0.4}
           transparent
-          opacity={0.8}
+          opacity={0.75}
         />
       </Sphere>
 
@@ -674,26 +565,23 @@ const AiAvatar: React.FC<AiAvatarProps> = ({ isActive, volume, onClick, isLoadin
         <Canvas
           camera={{ position: [0, 0, 3.2], fov: 36 }}
           dpr={[1, 2]}
-          gl={{ alpha: true, antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+          gl={{
+            alpha: true,
+            antialias: true,
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 1.15,
+          }}
           style={{ background: 'transparent' }}
         >
-          {/* Realistic 3-point lighting setup */}
-          <ambientLight intensity={0.35} color="#ffeedd" />
+          {/* Environment-based lighting for realistic reflections */}
+          <Environment preset="studio" />
 
-          {/* Key light — warm, from upper right */}
-          <directionalLight position={[3, 4, 5]} intensity={1.2} color="#fff0dd" castShadow />
-
-          {/* Fill light — cooler, from left */}
-          <directionalLight position={[-3, 1, 3]} intensity={0.4} color="#aaccee" />
-
-          {/* Back/rim light — cool blue for edge definition */}
-          <pointLight position={[0, 2, -4]} intensity={0.8} color="#6688cc" />
-
-          {/* Under light — subtle warm bounce */}
-          <pointLight position={[0, -3, 2]} intensity={0.15} color="#ffddbb" />
-
-          {/* Specular kicker for eyes */}
-          <pointLight position={[1, 1, 5]} intensity={0.3} color="#ffffff" />
+          {/* Subtle fill lights to complement environment */}
+          <ambientLight intensity={0.2} color="#ffeedd" />
+          <directionalLight position={[3, 4, 5]} intensity={0.8} color="#fff0dd" />
+          <directionalLight position={[-3, 1, 3]} intensity={0.3} color="#aaccee" />
+          <pointLight position={[0, 2, -4]} intensity={0.5} color="#6688cc" />
+          <pointLight position={[1, 1, 5]} intensity={0.2} color="#ffffff" />
 
           <AvatarHead isActive={isActive} volume={volume} isLoading={isLoading} />
         </Canvas>
