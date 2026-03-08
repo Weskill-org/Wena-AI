@@ -133,6 +133,38 @@ const AiAvatar: React.FC<AiAvatarProps> = ({ isActive, volume, onClick, isLoadin
           }}
         />
 
+        {/* Lip sync mouth overlay */}
+        <AnimatePresence>
+          {isActive && volume > 0.02 && (
+            <motion.div
+              className="absolute z-10"
+              style={{
+                left: '50%',
+                top: '68%',
+                transform: 'translateX(-50%)',
+                width: '18%',
+              }}
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: Math.min(volume * 1.5, 0.85),
+                scaleY: 0.3 + volume * 3.5,
+                scaleX: 1 + volume * 0.5,
+              }}
+              exit={{ opacity: 0, scaleY: 0.1 }}
+              transition={{ duration: 0.07, ease: 'easeOut' }}
+            >
+              <div
+                className="w-full rounded-[50%]"
+                style={{
+                  height: `${6 + volume * 20}px`,
+                  background: 'radial-gradient(ellipse at 50% 30%, hsl(0 10% 15% / 0.9), hsl(0 15% 25% / 0.7))',
+                  boxShadow: '0 1px 3px hsl(0 0% 0% / 0.3), inset 0 -1px 2px hsl(0 20% 35% / 0.4)',
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Active overlay glow on face */}
         <AnimatePresence>
           {isActive && (
