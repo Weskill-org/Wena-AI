@@ -101,6 +101,9 @@ export default function Dashboard() {
       </div>
 
       <div className="px-4 space-y-5">
+        {/* Global Search */}
+        <GlobalSearch />
+
         {/* Progress Card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
