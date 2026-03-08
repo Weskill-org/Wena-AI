@@ -63,7 +63,9 @@ const App = () => (
           <AuthProvider>
             <Routes>
               <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/login" element={<Login />} />
+              <Route path="/login" element={
+                localStorage.getItem("hasSeenOnboarding") ? <Login /> : <Navigate to="/onboarding" replace />
+              } />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><AiChat /></ProtectedRoute>} />
             <Route path="/modules" element={<ProtectedRoute><Modules /></ProtectedRoute>} />
