@@ -95,7 +95,7 @@ const AiAvatar: React.FC<AiAvatarProps> = ({ isActive, volume, onClick, isLoadin
         className="relative z-10 w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden"
         animate={
           isLoading
-            ? { rotate: [0, 360], scale: [0.95, 1.0, 0.95] }
+            ? { scale: [0.95, 1.0, 0.95] }
             : isSleeping
               ? { 
                   scale: [0.97, 0.99, 0.97],
