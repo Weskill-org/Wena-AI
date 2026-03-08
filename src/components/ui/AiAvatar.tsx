@@ -121,7 +121,7 @@ function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume
   const mouthTopRef = useRef<THREE.Mesh>(null!);
   const mouthBottomRef = useRef<THREE.Mesh>(null!);
   const glowRef = useRef<THREE.Mesh>(null!);
-  const noseRef = useRef<THREE.Mesh>(null!);
+  const noseRef = useRef<THREE.Group>(null!);
   const smoothVol = useRef(0);
   const breathRef = useRef(0);
 
