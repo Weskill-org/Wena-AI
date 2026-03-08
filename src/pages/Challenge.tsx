@@ -67,13 +67,15 @@ export default function Challenge() {
     const loadInitialData = async () => {
         try {
             setLoading(true);
-            const [stats, lb] = await Promise.all([
+            const [stats, lb, rank] = await Promise.all([
                 challengeService.getUserStats(user!.id),
-                challengeService.getLeaderboard()
+                challengeService.getLeaderboard(),
+                challengeService.getUserRank(user!.id)
             ]);
             
             setUserStats(stats);
             setLeaderboard(lb);
+            setUserRank(rank);
 
             // Check if user can attempt today
             const canAttempt = await challengeService.canAttemptToday(user!.id);
