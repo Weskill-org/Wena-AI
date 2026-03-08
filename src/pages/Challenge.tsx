@@ -29,6 +29,7 @@ export default function Challenge() {
     const [loading, setLoading] = useState(true);
     const [userStats, setUserStats] = useState<UserStats | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    const [userRank, setUserRank] = useState<LeaderboardEntry | null>(null);
     
     // Challenge state
     const [challengeState, setChallengeState] = useState<'idle' | 'loading' | 'active' | 'completed' | 'cooldown'>('idle');
