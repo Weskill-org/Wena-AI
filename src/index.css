@@ -211,6 +211,10 @@
     -webkit-backdrop-filter: blur(12px);
   }
 
+  .dark .glass {
+    background: hsl(var(--surface) / 0.7);
+  }
+
   /* Active state for touch */
   .active-scale {
     transition: transform 0.1s ease;

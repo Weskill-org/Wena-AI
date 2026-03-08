@@ -151,6 +151,12 @@ export default function Settings() {
             title: "Preferences",
             items: [
                 {
+                    icon: theme === 'dark' ? Sun : Moon,
+                    label: "Theme",
+                    description: theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode",
+                    action: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
+                },
+                {
                     icon: Bell,
                     label: "Notifications",
                     description: "Manage your alerts",

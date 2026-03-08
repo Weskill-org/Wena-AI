@@ -171,6 +171,12 @@ export default function Dashboard() {
           </GradientButton>
         </motion.div>
 
+        {/* Streaks & XP */}
+        <StreaksXP />
+
+        {/* Daily Goals */}
+        <DailyGoals />
+
         {/* Quick Actions */}
         <div>
           <h2 className="text-base font-semibold mb-3">Quick Actions</h2>
