@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AiAvatar from './AiAvatar';
+import { RolePicker } from './RolePicker';
 import { GeminiLiveClient } from '@/services/liveService';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, X, Coins, Timer } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { GradientButton } from "@/components/ui/gradient-button";
 
 interface VoiceModeProps {
     onDeductCredit: () => void;
