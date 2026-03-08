@@ -62,7 +62,7 @@ export const personaService = {
             return 10;
         }
 
-        return data.remaining_questions;
+        return (data as any).remaining_questions;
     },
 
     async decrementDailyLimit(userId: string) {
