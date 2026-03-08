@@ -53,15 +53,22 @@ function Eye({ position, isActive, volume, isSleeping }: { position: [number, nu
     const t = state.clock.elapsedTime;
     const dt = state.clock.getDelta();
 
-    // Sleeping: eyes fully closed
+    // Sleeping: eyes fully closed — lids cover entire eye
     if (isSleeping) {
-      upperLidRef.current.scale.y = THREE.MathUtils.lerp(upperLidRef.current.scale.y, 1.3, 0.1);
-      lowerLidRef.current.scale.y = THREE.MathUtils.lerp(lowerLidRef.current.scale.y, 0.8, 0.1);
-      // No saccades or pupil changes when sleeping
+      upperLidRef.current.scale.y = THREE.MathUtils.lerp(upperLidRef.current.scale.y, 2.5, 0.12);
+      lowerLidRef.current.scale.y = THREE.MathUtils.lerp(lowerLidRef.current.scale.y, 1.8, 0.12);
+      // Hide iris group behind lids
+      if (irisRef.current) {
+        irisRef.current.position.z = THREE.MathUtils.lerp(irisRef.current.position.z, 0.02, 0.1);
+      }
       if (pupilRef.current) {
-        pupilRef.current.scale.setScalar(THREE.MathUtils.lerp(pupilRef.current.scale.x, 0.5, 0.05));
+        pupilRef.current.scale.setScalar(THREE.MathUtils.lerp(pupilRef.current.scale.x, 0.3, 0.05));
       }
       return;
+    }
+    // When waking up, reset iris z
+    if (irisRef.current && irisRef.current.position.z < 0.05) {
+      irisRef.current.position.z = THREE.MathUtils.lerp(irisRef.current.position.z, 0.088, 0.05);
     }
 
     // Realistic blinking — ~every 3-5 seconds, fast close, slower open
