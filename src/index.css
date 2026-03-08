@@ -8,10 +8,64 @@
 
 @layer base {
   :root {
+    /* Light Base Colors */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 8%;
+
+    --surface: 0 0% 94%;
+    --surface-elevated: 0 0% 96%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
+
+    /* Neon Gradient Colors */
+    --primary: 280 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 280 100% 70%;
+
+    --secondary: 180 100% 35%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-glow: 180 100% 45%;
+
+    --accent: 140 100% 35%;
+    --accent-foreground: 0 0% 100%;
+    --accent-glow: 140 100% 45%;
+
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 40%;
+
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 88%;
+    --input: 0 0% 91%;
+    --ring: 280 100% 60%;
+
+    --radius: 1rem;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(280 100% 60%) 0%, hsl(330 100% 60%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(180 100% 35%) 0%, hsl(220 100% 50%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(140 100% 35%) 0%, hsl(180 100% 35%) 100%);
+
+    /* Shadows & Glows */
+    --shadow-glow-primary: 0 0 40px hsl(280 100% 60% / 0.15);
+    --shadow-glow-secondary: 0 0 40px hsl(180 100% 35% / 0.15);
+    --shadow-glow-accent: 0 0 40px hsl(140 100% 35% / 0.15);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .dark {
     /* Dark Base Colors */
     --background: 0 0% 4%;
     --foreground: 0 0% 98%;
-    
+
     --surface: 0 0% 8%;
     --surface-elevated: 0 0% 10%;
 
@@ -50,16 +104,15 @@
     --gradient-primary: linear-gradient(135deg, hsl(280 100% 70%) 0%, hsl(330 100% 70%) 100%);
     --gradient-secondary: linear-gradient(135deg, hsl(180 100% 50%) 0%, hsl(220 100% 60%) 100%);
     --gradient-accent: linear-gradient(135deg, hsl(140 100% 50%) 0%, hsl(180 100% 50%) 100%);
-    
+
     /* Shadows & Glows */
     --shadow-glow-primary: 0 0 40px hsl(280 100% 70% / 0.3);
     --shadow-glow-secondary: 0 0 40px hsl(180 100% 50% / 0.3);
     --shadow-glow-accent: 0 0 40px hsl(140 100% 50% / 0.3);
-    
+
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-
   }
 }
 
@@ -156,6 +209,10 @@
     background: hsl(var(--surface) / 0.7);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+  }
+
+  .dark .glass {
+    background: hsl(var(--surface) / 0.7);
   }
 
   /* Active state for touch */

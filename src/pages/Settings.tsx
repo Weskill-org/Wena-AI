@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, User, Lock, Bell, Shield, LogOut, ChevronRight } from "lucide-react";
+import { ArrowLeft, User, Lock, Bell, Shield, LogOut, ChevronRight, Sun, Moon } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -22,6 +23,7 @@ export default function Settings() {
     const { signOut } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { theme, setTheme } = useTheme();
     const [isPasswordOpen, setIsPasswordOpen] = useState(false);
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -148,6 +150,12 @@ export default function Settings() {
         {
             title: "Preferences",
             items: [
+                {
+                    icon: theme === 'dark' ? Sun : Moon,
+                    label: "Theme",
+                    description: theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode",
+                    action: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
+                },
                 {
                     icon: Bell,
                     label: "Notifications",

@@ -3,6 +3,9 @@ import { Bot, BookOpen, Zap, Target, Gift, ChevronRight } from "lucide-react";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AdaptiveTimeline } from "@/components/modules/AdaptiveTimeline";
+import { StreaksXP } from "@/components/dashboard/StreaksXP";
+import { DailyGoals } from "@/components/dashboard/DailyGoals";
+import { GlobalSearch } from "@/components/dashboard/GlobalSearch";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -98,6 +101,9 @@ export default function Dashboard() {
       </div>
 
       <div className="px-4 space-y-5">
+        {/* Global Search */}
+        <GlobalSearch />
+
         {/* Progress Card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -168,6 +174,12 @@ export default function Dashboard() {
             Earn
           </GradientButton>
         </motion.div>
+
+        {/* Streaks & XP */}
+        <StreaksXP />
+
+        {/* Daily Goals */}
+        <DailyGoals />
 
         {/* Quick Actions */}
         <div>

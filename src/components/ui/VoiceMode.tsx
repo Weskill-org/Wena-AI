@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AiAvatar from './AiAvatar';
+import { RolePicker } from './RolePicker';
 import { GeminiLiveClient } from '@/services/liveService';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, X, Coins, Timer } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { GradientButton } from "@/components/ui/gradient-button";
 
 interface VoiceModeProps {
     onDeductCredit: () => void;
@@ -72,8 +81,11 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
     const [volume, setVolume] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [transcript, setTranscript] = useState<string[]>([]);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [sessionSeconds, setSessionSeconds] = useState(0);
     const liveClient = useRef<GeminiLiveClient | null>(null);
     const billingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+    const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
         // Cleanup on unmount
@@ -81,14 +93,37 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
             if (liveClient.current) {
                 liveClient.current.disconnect();
             }
-            if (billingInterval.current) {
-                clearInterval(billingInterval.current);
-            }
+            if (billingInterval.current) clearInterval(billingInterval.current);
+            if (timerInterval.current) clearInterval(timerInterval.current);
         };
     }, []);
 
     const handleToggle = async () => {
         if (isLoading) return;
+
+        if (active) {
+            liveClient.current?.disconnect();
+            setActive(false);
+            if (timerInterval.current) { clearInterval(timerInterval.current); timerInterval.current = null; }
+            return;
+        }
+
+        if (!hasCredits) {
+            setError("Insufficient credits. Please top up to use Voice Mode.");
+            return;
+        }
+
+        // Show confirmation dialog if not custom instruction
+        if (!customInstruction && !showConfirm) {
+            setShowConfirm(true);
+            return;
+        }
+
+        setShowConfirm(false);
+        await startSession();
+    };
+
+    const startSession = async () => {
 
         if (active) {
             liveClient.current?.disconnect();
@@ -150,8 +185,14 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     onConnect: () => {
                         setActive(true);
                         setIsLoading(false);
+                        setSessionSeconds(0);
                         const roleName = modeName || selectedRole;
                         setTranscript(prev => [...prev, `System: Connected as ${roleName}`]);
+
+                        // Session timer
+                        timerInterval.current = setInterval(() => {
+                            setSessionSeconds(s => s + 1);
+                        }, 1000);
 
                         // Deduct credit immediately on start, then every minute
                         onDeductCredit();
@@ -167,13 +208,10 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                         setIsLoading(false);
                         setVolume(0);
                         setTranscript(prev => [...prev, "System: Disconnected."]);
-                        // Reset client so we can re-init with new role if needed next time
                         liveClient.current = null;
 
-                        if (billingInterval.current) {
-                            clearInterval(billingInterval.current);
-                            billingInterval.current = null;
-                        }
+                        if (billingInterval.current) { clearInterval(billingInterval.current); billingInterval.current = null; }
+                        if (timerInterval.current) { clearInterval(timerInterval.current); timerInterval.current = null; }
                     },
                     onVolumeChange: (vol) => {
                         setVolume(vol);
@@ -209,19 +247,21 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
         }
     };
 
+    const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+
     return (
-        <div className="h-full flex flex-col items-center justify-center relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black px-4">
+        <div className="h-full flex flex-col items-center justify-center relative bg-background px-4">
 
             {/* Background Ambience */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-48 md:w-96 h-48 md:h-96 bg-purple-900/10 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-1/4 right-1/4 w-48 md:w-96 h-48 md:h-96 bg-cyan-900/10 rounded-full blur-3xl"></div>
+                <div className="absolute top-1/4 left-1/4 w-48 md:w-96 h-48 md:h-96 bg-primary/5 rounded-full blur-3xl" />
+                <div className="absolute bottom-1/4 right-1/4 w-48 md:w-96 h-48 md:h-96 bg-secondary/5 rounded-full blur-3xl" />
             </div>
 
             <div className="z-10 flex flex-col items-center space-y-4 md:space-y-8">
                 <div className="text-center space-y-1">
-                    <h2 className="text-2xl md:text-3xl font-light text-white tracking-wide">Wena AI</h2>
-                    <p className="text-slate-400 text-sm md:text-base">
+                    <h2 className="text-2xl md:text-3xl font-light text-foreground tracking-wide">Wena AI</h2>
+                    <p className="text-muted-foreground text-sm md:text-base">
                         {isLoading
                             ? 'Connecting...'
                             : (active
@@ -232,6 +272,15 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     </p>
                 </div>
 
+                {/* Session Timer */}
+                {active && (
+                    <div className="flex items-center gap-2 bg-surface/80 backdrop-blur-sm border border-border rounded-full px-4 py-1.5">
+                        <Timer className="w-3.5 h-3.5 text-accent" />
+                        <span className="text-sm font-mono text-foreground">{formatTime(sessionSeconds)}</span>
+                        <span className="text-[10px] text-muted-foreground">• 1 credit/min</span>
+                    </div>
+                )}
+
                 <AiAvatar
                     isActive={active}
                     volume={volume}
@@ -239,42 +288,30 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     isLoading={isLoading}
                 />
 
-                {/* Role Chips - Grid layout for mobile - Only show if no custom instruction */}
+                {/* Role Picker - Card-based - Only show if no custom instruction */}
                 {!customInstruction && (
-                    <div className="grid grid-cols-3 gap-2 md:flex md:gap-3 md:flex-wrap md:justify-center max-w-sm md:max-w-md">
-                        {Object.keys(ROLES).map((role) => (
-                            <button
-                                key={role}
-                                onClick={() => !active && setSelectedRole(role)}
-                                disabled={active}
-                                className={`px-2 py-1.5 md:px-4 md:py-2 rounded-full border text-xs md:text-sm transition-all duration-300
-                            ${selectedRole === role
-                                        ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.2)] scale-105'
-                                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700 hover:border-cyan-500/50'
-                                    }
-                            ${active ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                        `}
-                            >
-                                {role}
-                            </button>
-                        ))}
-                    </div>
+                    <RolePicker
+                        roles={Object.keys(ROLES)}
+                        selected={selectedRole}
+                        onSelect={setSelectedRole}
+                        disabled={active}
+                    />
                 )}
 
                 {error && (
-                    <div className="absolute bottom-4 left-4 right-4 md:bottom-10 md:left-auto md:right-auto bg-red-500/10 border border-red-500/50 text-red-200 px-4 py-2 md:px-6 md:py-3 rounded-lg flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-2 text-sm">
+                    <div className="absolute bottom-4 left-4 right-4 bg-destructive/10 border border-destructive/50 text-destructive px-4 py-2 rounded-lg flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-2 text-sm">
                         <X size={14} />
                         <span>{error}</span>
                     </div>
                 )}
 
                 {active && (
-                    <div className="absolute top-4 right-4 md:top-10 md:right-10 bg-black/40 backdrop-blur-md p-3 md:p-4 rounded-xl border border-white/10 max-w-[200px] md:max-w-xs hidden md:block animate-in fade-in zoom-in-95 duration-300">
-                        <div className="flex items-center space-x-2 text-cyan-400 mb-2">
+                    <div className="absolute top-4 right-4 md:top-10 md:right-10 bg-surface/80 backdrop-blur-md p-3 md:p-4 rounded-xl border border-border max-w-[200px] md:max-w-xs hidden md:block animate-in fade-in zoom-in-95 duration-300">
+                        <div className="flex items-center space-x-2 text-secondary mb-2">
                             <Sparkles size={14} />
                             <span className="text-xs font-bold uppercase">Live Transcript</span>
                         </div>
-                        <div className="h-24 md:h-32 overflow-y-auto text-xs text-slate-300 space-y-1 scrollbar-hide">
+                        <div className="h-24 md:h-32 overflow-y-auto text-xs text-muted-foreground space-y-1 scrollbar-hide">
                             {transcript.slice(-5).map((t, i) => (
                                 <p key={i} className="opacity-80">{t}</p>
                             ))}
@@ -283,6 +320,39 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     </div>
                 )}
             </div>
+
+            {/* Session Confirmation Dialog */}
+            <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Coins className="w-5 h-5 text-accent" />
+                            Start Voice Session
+                        </DialogTitle>
+                        <DialogDescription>
+                            You're about to start a session as <strong>{selectedRole}</strong>.
+                            This costs <strong>1 credit per minute</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex gap-2 mt-2">
+                        <button
+                            onClick={() => setShowConfirm(false)}
+                            className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-surface transition-smooth"
+                        >
+                            Cancel
+                        </button>
+                        <GradientButton
+                            onClick={async () => {
+                                setShowConfirm(false);
+                                await startSession();
+                            }}
+                            className="flex-1"
+                        >
+                            Start Session
+                        </GradientButton>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
