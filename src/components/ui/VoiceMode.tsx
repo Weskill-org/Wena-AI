@@ -93,9 +93,8 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
             if (liveClient.current) {
                 liveClient.current.disconnect();
             }
-            if (billingInterval.current) {
-                clearInterval(billingInterval.current);
-            }
+            if (billingInterval.current) clearInterval(billingInterval.current);
+            if (timerInterval.current) clearInterval(timerInterval.current);
         };
     }, []);
 
