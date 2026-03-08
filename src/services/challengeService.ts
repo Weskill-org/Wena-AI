@@ -334,6 +334,49 @@ export const challengeService = {
         };
     },
 
+    async getUserRank(userId: string): Promise<LeaderboardEntry | null> {
+        try {
+            // Get user's stats
+            const { data: stats } = await supabase
+                .from('user_stats')
+                .select('monthly_xp, current_streak')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (!stats) return null;
+
+            // Count users with higher monthly_xp to determine rank
+            const { count } = await supabase
+                .from('user_stats')
+                .select('*', { count: 'exact', head: true })
+                .gt('monthly_xp', stats.monthly_xp);
+
+            const rank = (count || 0) + 1;
+
+            // Get profile
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('full_name, avatar_url')
+                .eq('id', userId)
+                .maybeSingle();
+
+            const fullName = profile?.full_name || 'Anonymous';
+            const firstName = fullName.split(' ')[0];
+
+            return {
+                user_id: userId,
+                first_name: firstName,
+                avatar_url: profile?.avatar_url || null,
+                monthly_xp: stats.monthly_xp || 0,
+                current_streak: stats.current_streak || 0,
+                rank
+            };
+        } catch (error) {
+            console.error("Error getting user rank:", error);
+            return null;
+        }
+    },
+
     getStreakRewards(): Record<number, number> {
         return STREAK_REWARDS;
     }

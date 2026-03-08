@@ -29,6 +29,7 @@ export default function Challenge() {
     const [loading, setLoading] = useState(true);
     const [userStats, setUserStats] = useState<UserStats | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    const [userRank, setUserRank] = useState<LeaderboardEntry | null>(null);
     
     // Challenge state
     const [challengeState, setChallengeState] = useState<'idle' | 'loading' | 'active' | 'completed' | 'cooldown'>('idle');
@@ -66,13 +67,15 @@ export default function Challenge() {
     const loadInitialData = async () => {
         try {
             setLoading(true);
-            const [stats, lb] = await Promise.all([
+            const [stats, lb, rank] = await Promise.all([
                 challengeService.getUserStats(user!.id),
-                challengeService.getLeaderboard()
+                challengeService.getLeaderboard(),
+                challengeService.getUserRank(user!.id)
             ]);
             
             setUserStats(stats);
             setLeaderboard(lb);
+            setUserRank(rank);
 
             // Check if user can attempt today
             const canAttempt = await challengeService.canAttemptToday(user!.id);
@@ -196,9 +199,13 @@ export default function Challenge() {
                 } : null);
             }
 
-            // Refresh leaderboard
-            const lb = await challengeService.getLeaderboard();
+            // Refresh leaderboard and rank
+            const [lb, rank] = await Promise.all([
+                challengeService.getLeaderboard(),
+                challengeService.getUserRank(user!.id)
+            ]);
             setLeaderboard(lb);
+            setUserRank(rank);
         } catch (error) {
             console.error("Error submitting:", error);
             toast.error("Failed to submit answer");
@@ -547,46 +554,107 @@ export default function Challenge() {
                                         No entries yet. Be the first!
                                     </div>
                                 ) : (
-                                    leaderboard.map((entry) => (
-                                        <motion.div
-                                            key={entry.user_id}
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            className={`p-4 flex items-center justify-between ${entry.user_id === user?.id ? 'bg-primary/5' : ''}`}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-8 h-8 flex items-center justify-center font-bold rounded-full ${
-                                                    entry.rank === 1 ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/20' :
-                                                    entry.rank === 2 ? 'bg-slate-400 text-white' :
-                                                    entry.rank === 3 ? 'bg-amber-600 text-white' :
-                                                    'text-muted-foreground bg-muted'
-                                                }`}>
-                                                    {entry.rank}
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <Avatar className="w-10 h-10 border border-border">
-                                                        <AvatarImage src={entry.avatar_url || undefined} />
-                                                        <AvatarFallback>{entry.first_name?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <div className="font-semibold flex items-center gap-2">
-                                                            {entry.first_name}
-                                                            {entry.user_id === user?.id && (
-                                                                <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">YOU</span>
-                                                            )}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                                            <Flame className="w-3 h-3 text-orange-500" />
-                                                            {entry.current_streak} day streak
+                                    <>
+                                        {leaderboard.map((entry) => (
+                                            <motion.div
+                                                key={entry.user_id}
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                className={`p-4 flex items-center justify-between ${entry.user_id === user?.id ? 'bg-primary/5' : ''}`}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`w-8 h-8 flex items-center justify-center font-bold rounded-full ${
+                                                        entry.rank === 1 ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/20' :
+                                                        entry.rank === 2 ? 'bg-slate-400 text-white' :
+                                                        entry.rank === 3 ? 'bg-amber-600 text-white' :
+                                                        'text-muted-foreground bg-muted'
+                                                    }`}>
+                                                        {entry.rank}
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <Avatar className="w-10 h-10 border border-border">
+                                                            <AvatarImage src={entry.avatar_url || undefined} />
+                                                            <AvatarFallback>{entry.first_name?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <div className="font-semibold flex items-center gap-2">
+                                                                {entry.first_name}
+                                                                {entry.user_id === user?.id && (
+                                                                    <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">YOU</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                                <Flame className="w-3 h-3 text-orange-500" />
+                                                                {entry.current_streak} day streak
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="font-bold text-primary">{entry.monthly_xp} XP</div>
-                                            </div>
-                                        </motion.div>
-                                    ))
+                                                <div className="text-right">
+                                                    <div className="font-bold text-primary">{entry.monthly_xp} XP</div>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+
+                                        {/* Show user rank if not in top 10 */}
+                                        {userRank && !leaderboard.some(e => e.user_id === user?.id) && (
+                                            <>
+                                                {/* Blurred placeholder rows */}
+                                                {[1, 2, 3].map((i) => (
+                                                    <div key={`blur-${i}`} className="p-4 flex items-center justify-between blur-[3px] opacity-30 select-none pointer-events-none">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-8 h-8 rounded-full bg-muted" />
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-full bg-muted" />
+                                                                <div>
+                                                                    <div className="h-4 w-20 bg-muted rounded" />
+                                                                    <div className="h-3 w-16 bg-muted rounded mt-1" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="h-4 w-12 bg-muted rounded" />
+                                                    </div>
+                                                ))}
+
+                                                {/* Dots separator */}
+                                                <div className="py-2 text-center">
+                                                    <span className="text-muted-foreground text-lg tracking-widest">•  •  •</span>
+                                                </div>
+
+                                                {/* User's own rank row - highlighted */}
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className="p-4 flex items-center justify-between bg-primary/10 border-t-2 border-b-2 border-primary/30"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-8 h-8 flex items-center justify-center font-bold rounded-full bg-primary/20 text-primary">
+                                                            {userRank.rank}
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar className="w-10 h-10 border-2 border-primary/40">
+                                                                <AvatarImage src={userRank.avatar_url || undefined} />
+                                                                <AvatarFallback>{userRank.first_name?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
+                                                            </Avatar>
+                                                            <div>
+                                                                <div className="font-semibold flex items-center gap-2">
+                                                                    {userRank.first_name}
+                                                                    <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-bold">YOU</span>
+                                                                </div>
+                                                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                                    <Flame className="w-3 h-3 text-orange-500" />
+                                                                    {userRank.current_streak} day streak
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="font-bold text-primary">{userRank.monthly_xp} XP</div>
+                                                    </div>
+                                                </motion.div>
+                                            </>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>
