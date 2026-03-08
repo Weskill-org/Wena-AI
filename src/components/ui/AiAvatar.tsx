@@ -375,6 +375,61 @@ function Ear({ side }: { side: 'left' | 'right' }) {
   );
 }
 
+/* ── Sleeping Zzz Particles ───────────────────────────────── */
+function ZLetter({ delay, startX }: { delay: number; startX: number }) {
+  const ref = useRef<THREE.Group>(null!);
+  const timeOffset = useRef(delay);
+
+  useFrame((state) => {
+    const t = (state.clock.elapsedTime + timeOffset.current) % 4;
+    const progress = t / 4;
+    if (ref.current) {
+      ref.current.position.x = startX + Math.sin(progress * Math.PI * 2) * 0.15;
+      ref.current.position.y = 0.4 + progress * 1.2;
+      ref.current.position.z = 1.0;
+      const scale = 0.15 + progress * 0.25;
+      ref.current.scale.setScalar(scale);
+      // Fade in then out
+      const opacity = progress < 0.15 ? progress / 0.15 : progress > 0.75 ? (1 - progress) / 0.25 : 1;
+      const mat = ref.current.children[0] as any;
+      if (mat?.material) {
+        mat.material.opacity = opacity * 0.7;
+      }
+    }
+  });
+
+  return (
+    <group ref={ref}>
+      <Text
+        fontSize={0.2}
+        color="#4ab8d4"
+        anchorX="center"
+        anchorY="middle"
+        font={undefined}
+      >
+        Z
+        <meshStandardMaterial
+          color="#4ab8d4"
+          emissive={new THREE.Color('#4ab8d4')}
+          emissiveIntensity={0.8}
+          transparent
+          opacity={0.7}
+        />
+      </Text>
+    </group>
+  );
+}
+
+function SleepingZzz() {
+  return (
+    <group>
+      <ZLetter delay={0} startX={0.5} />
+      <ZLetter delay={1.3} startX={0.6} />
+      <ZLetter delay={2.6} startX={0.55} />
+    </group>
+  );
+}
+
 /* ── 3D Head ─────────────────────────────────────────────── */
 function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume: number; isLoading: boolean }) {
   const groupRef = useRef<THREE.Group>(null!);
