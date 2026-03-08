@@ -1,6 +1,6 @@
 import React, { Suspense, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Sphere, RoundedBox, Environment } from '@react-three/drei';
+import { Sphere, RoundedBox, Environment, Text } from '@react-three/drei';
 import * as THREE from 'three';
 
 interface AiAvatarProps {
@@ -37,7 +37,7 @@ function SkinMaterial({ color, roughness = 0.45, subsurface = 0.3, emissiveInten
 }
 
 /* ── Animated Eye with Blinking ───────────────────────────── */
-function Eye({ position, isActive, volume }: { position: [number, number, number]; isActive: boolean; volume: number }) {
+function Eye({ position, isActive, volume, isSleeping }: { position: [number, number, number]; isActive: boolean; volume: number; isSleeping?: boolean }) {
   const irisRef = useRef<THREE.Group>(null!);
   const pupilRef = useRef<THREE.Mesh>(null!);
   const upperLidRef = useRef<THREE.Mesh>(null!);
@@ -52,6 +52,17 @@ function Eye({ position, isActive, volume }: { position: [number, number, number
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     const dt = state.clock.getDelta();
+
+    // Sleeping: eyes fully closed
+    if (isSleeping) {
+      upperLidRef.current.scale.y = THREE.MathUtils.lerp(upperLidRef.current.scale.y, 1.3, 0.1);
+      lowerLidRef.current.scale.y = THREE.MathUtils.lerp(lowerLidRef.current.scale.y, 0.8, 0.1);
+      // No saccades or pupil changes when sleeping
+      if (pupilRef.current) {
+        pupilRef.current.scale.setScalar(THREE.MathUtils.lerp(pupilRef.current.scale.x, 0.5, 0.05));
+      }
+      return;
+    }
 
     // Realistic blinking — ~every 3-5 seconds, fast close, slower open
     blinkTimer.current += dt;
@@ -364,6 +375,61 @@ function Ear({ side }: { side: 'left' | 'right' }) {
   );
 }
 
+/* ── Sleeping Zzz Particles ───────────────────────────────── */
+function ZLetter({ delay, startX }: { delay: number; startX: number }) {
+  const ref = useRef<THREE.Group>(null!);
+  const timeOffset = useRef(delay);
+
+  useFrame((state) => {
+    const t = (state.clock.elapsedTime + timeOffset.current) % 4;
+    const progress = t / 4;
+    if (ref.current) {
+      ref.current.position.x = startX + Math.sin(progress * Math.PI * 2) * 0.15;
+      ref.current.position.y = 0.4 + progress * 1.2;
+      ref.current.position.z = 1.0;
+      const scale = 0.15 + progress * 0.25;
+      ref.current.scale.setScalar(scale);
+      // Fade in then out
+      const opacity = progress < 0.15 ? progress / 0.15 : progress > 0.75 ? (1 - progress) / 0.25 : 1;
+      const mat = ref.current.children[0] as any;
+      if (mat?.material) {
+        mat.material.opacity = opacity * 0.7;
+      }
+    }
+  });
+
+  return (
+    <group ref={ref}>
+      <Text
+        fontSize={0.2}
+        color="#4ab8d4"
+        anchorX="center"
+        anchorY="middle"
+        font={undefined}
+      >
+        Z
+        <meshStandardMaterial
+          color="#4ab8d4"
+          emissive={new THREE.Color('#4ab8d4')}
+          emissiveIntensity={0.8}
+          transparent
+          opacity={0.7}
+        />
+      </Text>
+    </group>
+  );
+}
+
+function SleepingZzz() {
+  return (
+    <group>
+      <ZLetter delay={0} startX={0.5} />
+      <ZLetter delay={1.3} startX={0.6} />
+      <ZLetter delay={2.6} startX={0.55} />
+    </group>
+  );
+}
+
 /* ── 3D Head ─────────────────────────────────────────────── */
 function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume: number; isLoading: boolean }) {
   const groupRef = useRef<THREE.Group>(null!);
@@ -377,6 +443,7 @@ function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume
   const skinHighlight = useMemo(() => new THREE.Color('#e0b890'), []);
   const skinShadow = useMemo(() => new THREE.Color('#b8906e'), []);
   const glowColor = useMemo(() => new THREE.Color('#4ab8d4'), []);
+  const isSleeping = !isActive && !isLoading;
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
@@ -387,21 +454,33 @@ function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume
     // Subtle breathing
     breathRef.current = Math.sin(t * 1.0) * 0.005;
 
+    const isSleeping = !isActive && !isLoading;
+
     if (isLoading) {
       groupRef.current.rotation.y = t * 0.6;
       groupRef.current.position.y = Math.sin(t * 1.5) * 0.04;
       return;
     }
 
-    // Idle: gentle float
-    groupRef.current.position.y = Math.sin(t * 0.5) * 0.05 + breathRef.current;
-    groupRef.current.rotation.y = Math.sin(t * 0.2) * 0.08;
+    if (isSleeping) {
+      // Sleeping: slow breathing bob, head tilted to the side
+      groupRef.current.position.y = THREE.MathUtils.lerp(
+        groupRef.current.position.y, Math.sin(t * 0.4) * 0.03 - 0.05, 0.03
+      );
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0.15, 0.02);
+      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0.12, 0.02);
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0.08, 0.02);
+    } else {
+      // Idle: gentle float
+      groupRef.current.position.y = Math.sin(t * 0.5) * 0.05 + breathRef.current;
+      groupRef.current.rotation.y = Math.sin(t * 0.2) * 0.08;
+    }
 
     // Active: voice-driven micro-movements
     if (isActive) {
       groupRef.current.rotation.z = Math.sin(t * 1.5) * 0.025 * (1 + v * 1.2);
       groupRef.current.rotation.x = Math.sin(t * 1.1) * 0.02 + v * 0.015;
-    } else {
+    } else if (!isSleeping) {
       groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0, 0.04);
       groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0, 0.04);
     }
@@ -492,8 +571,8 @@ function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume
       </Sphere>
 
       {/* Eyes */}
-      <Eye position={[-0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} />
-      <Eye position={[0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} />
+      <Eye position={[-0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} isSleeping={!isActive && !isLoading} />
+      <Eye position={[0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} isSleeping={!isActive && !isLoading} />
 
       {/* Eyebrows */}
       <Eyebrow position={[-0.28, 0.4, 0.82]} isActive={isActive} volume={smoothVol.current} />
@@ -561,6 +640,9 @@ function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume
           opacity={0.8}
         />
       </Sphere>
+
+      {/* Sleeping Zzz */}
+      {isSleeping && <SleepingZzz />}
     </group>
   );
 }
