@@ -123,14 +123,7 @@ const AiAvatar: React.FC<AiAvatarProps> = ({ isActive, volume, onClick, isLoadin
           alt="AI Avatar"
           className="w-full h-full object-cover"
           draggable={false}
-          animate={
-            isActive && volume > 0.02
-              ? { y: volume * 3, scaleY: 1 + volume * 0.015 }
-              : { y: 0, scaleY: 1 }
-          }
-          transition={{ duration: 0.08, ease: 'easeOut' }}
           style={{
-            transformOrigin: '50% 65%',
             filter: isSleeping
               ? 'brightness(0.7) saturate(0.8)'
               : isActive
