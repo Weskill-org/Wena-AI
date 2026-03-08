@@ -1,6 +1,6 @@
 import React, { Suspense, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Sphere, RoundedBox, Environment } from '@react-three/drei';
+import { Sphere, RoundedBox, Environment, Text } from '@react-three/drei';
 import * as THREE from 'three';
 
 interface AiAvatarProps {
