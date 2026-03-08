@@ -515,8 +515,8 @@ function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume
       </Sphere>
 
       {/* Eyes */}
-      <Eye position={[-0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} />
-      <Eye position={[0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} />
+      <Eye position={[-0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} isSleeping={!isActive && !isLoading} />
+      <Eye position={[0.28, 0.2, 0.82]} isActive={isActive} volume={smoothVol.current} isSleeping={!isActive && !isLoading} />
 
       {/* Eyebrows */}
       <Eyebrow position={[-0.28, 0.4, 0.82]} isActive={isActive} volume={smoothVol.current} />
