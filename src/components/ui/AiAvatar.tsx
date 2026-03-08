@@ -398,21 +398,33 @@ function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume
     // Subtle breathing
     breathRef.current = Math.sin(t * 1.0) * 0.005;
 
+    const isSleeping = !isActive && !isLoading;
+
     if (isLoading) {
       groupRef.current.rotation.y = t * 0.6;
       groupRef.current.position.y = Math.sin(t * 1.5) * 0.04;
       return;
     }
 
-    // Idle: gentle float
-    groupRef.current.position.y = Math.sin(t * 0.5) * 0.05 + breathRef.current;
-    groupRef.current.rotation.y = Math.sin(t * 0.2) * 0.08;
+    if (isSleeping) {
+      // Sleeping: slow breathing bob, head tilted to the side
+      groupRef.current.position.y = THREE.MathUtils.lerp(
+        groupRef.current.position.y, Math.sin(t * 0.4) * 0.03 - 0.05, 0.03
+      );
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0.15, 0.02);
+      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0.12, 0.02);
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0.08, 0.02);
+    } else {
+      // Idle: gentle float
+      groupRef.current.position.y = Math.sin(t * 0.5) * 0.05 + breathRef.current;
+      groupRef.current.rotation.y = Math.sin(t * 0.2) * 0.08;
+    }
 
     // Active: voice-driven micro-movements
     if (isActive) {
       groupRef.current.rotation.z = Math.sin(t * 1.5) * 0.025 * (1 + v * 1.2);
       groupRef.current.rotation.x = Math.sin(t * 1.1) * 0.02 + v * 0.015;
-    } else {
+    } else if (!isSleeping) {
       groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0, 0.04);
       groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0, 0.04);
     }
