@@ -470,13 +470,14 @@ function AvatarHead({ isActive, volume, isLoading }: { isActive: boolean; volume
     }
 
     if (isSleeping) {
-      // Sleeping: slow breathing bob, head tilted to the side
+      // Sleeping: slow breathing bob, head drooped forward and tilted
       groupRef.current.position.y = THREE.MathUtils.lerp(
-        groupRef.current.position.y, Math.sin(t * 0.4) * 0.03 - 0.05, 0.03
+        groupRef.current.position.y, Math.sin(t * 0.3) * 0.02 - 0.08, 0.02
       );
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0.15, 0.02);
-      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0.12, 0.02);
-      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0.08, 0.02);
+      // Head tilted to side and drooped forward
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0.1, 0.015);
+      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0.15, 0.015);
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0.18, 0.015);
     } else {
       // Idle: gentle float
       groupRef.current.position.y = Math.sin(t * 0.5) * 0.05 + breathRef.current;
