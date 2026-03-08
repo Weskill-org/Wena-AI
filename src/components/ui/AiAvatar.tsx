@@ -114,7 +114,7 @@ const AiAvatar: React.FC<AiAvatarProps> = ({ isActive, volume, onClick, isLoadin
         }
         transition={
           isLoading
-            ? { rotate: { duration: 2, repeat: Infinity, ease: 'linear' }, scale: { duration: 1.5, repeat: Infinity } }
+            ? { scale: { duration: 1.5, repeat: Infinity } }
             : { duration: isSleeping ? 4 : isActive ? 0.8 : 3, repeat: Infinity, ease: 'easeInOut' }
         }
       >
