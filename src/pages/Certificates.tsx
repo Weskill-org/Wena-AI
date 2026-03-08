@@ -5,6 +5,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+<<<<<<< Updated upstream
+=======
+import { generateCertificatePDF } from "@/components/certificates/CertificatePDF";
+import { useState } from "react";
+import { useToast } from "@/components/ui/use-toast";
+import { generateCertificateLinkedInUrl } from "@/services/linkedinService";
+>>>>>>> Stashed changes
 
 export default function Certificates() {
   const { user } = useAuth();
@@ -98,10 +105,35 @@ export default function Certificates() {
                         className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-smooth text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2"
                       >
                         <Download className="w-4 h-4" />
+<<<<<<< Updated upstream
                         Download
                       </a>
                     </div>
                   )}
+=======
+                      )}
+                      Download Verifiable PDF
+                    </button>
+                    <button
+                      onClick={() => {
+                        const issuedDate = new Date(cert.issued_date);
+                        const linkedinUrl = generateCertificateLinkedInUrl({
+                          title: cert.title,
+                          organizationName: "Wena AI",
+                          issueYear: issuedDate.getFullYear(),
+                          issueMonth: issuedDate.getMonth() + 1,
+                          certId: cert.verification_code,
+                          certUrl: `${window.location.origin}/verify/${cert.verification_code}`
+                        });
+                        window.open(linkedinUrl, '_blank');
+                      }}
+                      className="bg-[#0077B5] hover:bg-[#0077B5]/90 text-white transition-smooth px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      Add to LinkedIn
+                    </button>
+                  </div>
+>>>>>>> Stashed changes
                 </div>
               </div>
             </motion.div>

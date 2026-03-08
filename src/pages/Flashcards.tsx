@@ -175,15 +175,32 @@ export default function Flashcards() {
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-8"
             >
-                <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-4 mb-2">
                     <button
                         onClick={() => navigate('/')}
-                        className="w-10 h-10 rounded-xl bg-surface/50 backdrop-blur-sm border border-border flex items-center justify-center hover:bg-surface transition-smooth"
+                        className="w-10 h-10 rounded-xl bg-surface/50 backdrop-blur-sm border border-border flex items-center justify-center hover:bg-surface transition-smooth active-scale"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <h1 className="text-2xl font-bold">Daily Flashcards</h1>
                 </div>
+
+                {/* Session Progress Bar */}
+                {!completed && (
+                    <div className="mt-4 bg-surface/50 backdrop-blur-sm border border-border rounded-full p-1.5 flex items-center gap-3">
+                        <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${((10 - remainingQuestions) / 10) * 100}%` }}
+                                transition={{ duration: 0.5 }}
+                                className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
+                            />
+                        </div>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pr-2">
+                            {10 - remainingQuestions}/10
+                        </span>
+                    </div>
+                )}
             </motion.div>
 
             <div className="max-w-md mx-auto">
@@ -191,24 +208,49 @@ export default function Flashcards() {
                     {completed ? (
                         <motion.div
                             key="completed"
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9 }}
-                            className="bg-surface/50 backdrop-blur-lg border border-border rounded-3xl p-8 text-center"
+                            className="bg-surface/50 backdrop-blur-lg border border-border rounded-[2rem] p-10 text-center relative overflow-hidden glare"
                         >
-                            <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <CheckCircle2 className="w-10 h-10 text-green-500" />
+                            <div className="relative z-10">
+                                <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
+                                    transition={{ delay: 0.2, type: "spring" }}
+                                    className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-green-500/20"
+                                >
+                                    <CheckCircle2 className="w-12 h-12 text-white" />
+                                </motion.div>
+                                <h2 className="text-3xl font-bold mb-3">Goal Reached!</h2>
+                                <p className="text-muted-foreground mb-8 leading-relaxed max-w-[240px] mx-auto">
+                                    You've mastered 10 flashcards today. Your AI persona is getting smarter!
+                                </p>
+                                <Button
+                                    onClick={() => navigate('/')}
+                                    className="w-full h-14 bg-primary hover:bg-primary/90 text-white text-lg rounded-2xl shadow-lg shadow-primary/20"
+                                >
+                                    Back to Dashboard
+                                </Button>
                             </div>
-                            <h2 className="text-2xl font-bold mb-2">All Caught Up!</h2>
-                            <p className="text-muted-foreground mb-6">
-                                You've answered all 10 flashcards for today. Great job building your persona!
-                            </p>
-                            <Button
-                                onClick={() => navigate('/')}
-                                className="w-full bg-primary hover:bg-primary/90 text-white"
-                            >
-                                Back to Dashboard
-                            </Button>
+
+                            {/* Decorative background bursts */}
+                            <motion.div
+                                animate={{
+                                    scale: [1, 1.2, 1],
+                                    opacity: [0.1, 0.2, 0.1]
+                                }}
+                                transition={{ duration: 4, repeat: Infinity }}
+                                className="absolute -top-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl"
+                            />
+                            <motion.div
+                                animate={{
+                                    scale: [1, 1.3, 1],
+                                    opacity: [0.05, 0.1, 0.05]
+                                }}
+                                transition={{ duration: 5, repeat: Infinity, delay: 1 }}
+                                className="absolute -bottom-10 -left-10 w-40 h-40 bg-accent/10 rounded-full blur-3xl"
+                            />
                         </motion.div>
                     ) : (
                         generating ? (

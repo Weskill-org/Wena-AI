@@ -1,14 +1,21 @@
 import { motion } from "framer-motion";
+<<<<<<< Updated upstream
 import { User, Wallet, Award, Settings, LogOut, Gift, ChevronRight, Edit, Sparkles } from "lucide-react";
+=======
+import { User, Wallet, Award, Settings, LogOut, Gift, ChevronRight, Edit, Sparkles, Trophy, Share2 } from "lucide-react";
+>>>>>>> Stashed changes
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { SkillResumeModal } from "@/components/profile/SkillResumeModal";
 
 export default function Profile() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [showResumeModal, setShowResumeModal] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ['profile', user?.id],
@@ -229,11 +236,23 @@ export default function Profile() {
           ))}
         </div>
 
-        {/* Logout Button */}
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setShowResumeModal(true)}
+          className="w-full bg-primary/10 hover:bg-primary/15 text-primary rounded-2xl p-3.5 flex items-center justify-center gap-2 font-semibold text-sm active-scale"
+        >
+          <Share2 className="w-4 h-4" />
+          Share Skill Resume Card
+        </motion.button>
+
+        {/* Logout Button */}
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.55 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleLogout}
           className="w-full bg-destructive/10 hover:bg-destructive/15 text-destructive rounded-2xl p-3.5 flex items-center justify-center gap-2 font-semibold text-sm active-scale"
@@ -242,6 +261,8 @@ export default function Profile() {
           Log Out
         </motion.button>
       </div>
+
+      <SkillResumeModal isOpen={showResumeModal} onClose={() => setShowResumeModal(false)} />
 
       <BottomNav />
     </div>

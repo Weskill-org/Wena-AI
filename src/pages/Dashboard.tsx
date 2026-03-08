@@ -12,6 +12,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { moduleService } from "@/services/moduleService";
 import { personaService } from "@/services/personaService";
+<<<<<<< Updated upstream
+=======
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { Skeleton, SkeletonContainer } from "@/components/ui/SkeletonContainer";
+>>>>>>> Stashed changes
 
 const quickActions = [
   { icon: Bot, label: "AI Buddy", gradient: "primary", path: "/chat", description: "Chat with AI" },
@@ -86,6 +91,7 @@ export default function Dashboard() {
               Hi, <span className="bg-gradient-to-r from-primary to-pink-500 bg-clip-text text-transparent">{userName}</span> 👋
             </h1>
           </div>
+<<<<<<< Updated upstream
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/profile')}
@@ -97,6 +103,27 @@ export default function Dashboard() {
               <span className="text-xl">👤</span>
             )}
           </motion.button>
+=======
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <SkeletonContainer
+              isLoading={!profile}
+              fallback={<Skeleton className="w-11 h-11 rounded-2xl" />}
+            >
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/profile')}
+                className="w-11 h-11 rounded-2xl bg-surface border border-border flex items-center justify-center overflow-hidden active-scale"
+              >
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xl">👤</span>
+                )}
+              </motion.button>
+            </SkeletonContainer>
+          </div>
+>>>>>>> Stashed changes
         </motion.div>
       </div>
 
@@ -151,16 +178,26 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           onClick={() => navigate('/wallet')}
-          className="glass border border-border rounded-2xl p-4 flex justify-between items-center active-scale cursor-pointer"
+          className="glass border border-border rounded-2xl p-4 flex justify-between items-center active-scale cursor-pointer glare"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
               <span className="text-lg">💰</span>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Balance</p>
-              <p className="text-xl font-bold text-accent">{wallet?.credits || 0}</p>
-            </div>
+            <SkeletonContainer
+              isLoading={!wallet}
+              fallback={
+                <div>
+                  <Skeleton className="h-3 w-12 mb-1" />
+                  <Skeleton className="h-6 w-16" />
+                </div>
+              }
+            >
+              <div>
+                <p className="text-xs text-muted-foreground">Balance</p>
+                <p className="text-xl font-bold text-accent">{wallet?.credits || 0}</p>
+              </div>
+            </SkeletonContainer>
           </div>
           <GradientButton
             variant="accent"
@@ -236,55 +273,80 @@ export default function Dashboard() {
             transition={{ delay: 0.4 }}
             className="space-y-2.5"
           >
-            {activeModules.length > 0 ? (
-              activeModules.map((module, index) => {
-                const progress = module.progress?.completion_percentage || 0;
-                const colors = ["primary", "secondary", "accent"];
-                const color = colors[index % colors.length];
-                const emojis = ["📚", "🎓", "💡"];
-
-                return (
-                  <motion.div
-                    key={module.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.45 + index * 0.05 }}
-                    onClick={() => navigate(`/modules/${module.id}`)}
-                    className="glass border border-border rounded-2xl p-3.5 flex items-center gap-3 active-scale cursor-pointer"
-                  >
-                    <div className={`w-11 h-11 rounded-xl bg-gradient-${color} flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-lg">{emojis[index]}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm truncate">{module.title}</h3>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <div className="flex-1 bg-muted rounded-full h-1.5 overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            transition={{ delay: 0.6 + index * 0.1, duration: 0.6 }}
-                            className={`bg-gradient-${color} h-full rounded-full`}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground font-medium">{progress}%</span>
+            <SkeletonContainer
+              isLoading={!modules}
+              fallback={
+                <div className="space-y-2.5">
+                  {[1, 2].map(i => (
+                    <div key={i} className="glass border border-border rounded-2xl p-3.5 flex items-center gap-3">
+                      <Skeleton className="w-11 h-11 rounded-xl" />
+                      <div className="flex-1">
+                        <Skeleton className="h-4 w-1/2 mb-2" />
+                        <Skeleton className="h-1.5 w-full" />
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  </motion.div>
-                );
-              })
-            ) : (
-              <div className="glass border border-border rounded-2xl p-6 text-center">
-                <span className="text-3xl block mb-2">📖</span>
-                <p className="text-muted-foreground text-sm">No active modules</p>
-                <button
-                  onClick={() => navigate('/modules')}
-                  className="text-primary text-sm font-medium mt-2"
-                >
-                  Start learning →
-                </button>
-              </div>
-            )}
+                  ))}
+                </div>
+              }
+            >
+              {activeModules.length > 0 ? (
+                activeModules.map((module, index) => {
+                  const progress = module.progress?.completion_percentage || 0;
+                  const colors = ["primary", "secondary", "accent"];
+                  const color = colors[index % colors.length];
+                  const emojis = ["📚", "🎓", "💡"];
+
+                  return (
+                    <motion.div
+                      key={module.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.45 + index * 0.05 }}
+                      onClick={() => navigate(`/modules/${module.id}`)}
+                      className="glass border border-border rounded-2xl p-3.5 flex items-center gap-3 active-scale cursor-pointer glare"
+                    >
+                      <div className={`w-11 h-11 rounded-xl bg-gradient-${color} flex items-center justify-center flex-shrink-0`}>
+                        <span className="text-lg">{emojis[index]}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm truncate">{module.title}</h3>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <div className="flex-1 bg-muted rounded-full h-1.5 overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${progress}%` }}
+                              transition={{ delay: 0.6 + index * 0.1, duration: 0.6 }}
+                              className={`bg-gradient-${color} h-full rounded-full`}
+                            />
+                          </div>
+                          <span className="text-xs text-muted-foreground font-medium">{progress}%</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    </motion.div>
+                  );
+                })
+              ) : (
+                <div className="glass border border-border rounded-3xl p-8 text-center relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative z-10">
+                    <div className="w-20 h-20 rounded-full bg-surface-elevated border border-border flex items-center justify-center mx-auto mb-4 shadow-xl">
+                      <BookOpen className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="font-bold text-lg mb-1">Begin Your Journey</h3>
+                    <p className="text-muted-foreground text-sm mb-6 max-w-[200px] mx-auto">
+                      Explore our library of modules and start building your skills today.
+                    </p>
+                    <GradientButton
+                      onClick={() => navigate('/modules')}
+                      className="h-11 px-6 rounded-2xl"
+                    >
+                      Explore Modules
+                    </GradientButton>
+                  </div>
+                </div>
+              )}
+            </SkeletonContainer>
           </motion.div>
         </div>
       </div>
