@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import VoiceOrb from '@/components/ui/VoiceOrb';
+import AiAvatar from '@/components/ui/AiAvatar';
 import { GeminiLiveClient } from '@/services/liveService';
 import { Sparkles, X } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
@@ -119,10 +119,10 @@ const CurriculumVoiceSession: React.FC<CurriculumVoiceSessionProps> = ({ moduleT
                     </p>
                 </div>
 
-                <VoiceOrb
+                <AiAvatar
                     isActive={isActive}
                     volume={volume}
-                    onClick={() => { }} // Disable manual toggle here, controlled by parent/prop
+                    onClick={() => { }}
                 />
 
                 {error && (

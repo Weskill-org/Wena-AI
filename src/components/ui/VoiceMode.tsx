@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import VoiceOrb from './VoiceOrb';
+import AiAvatar from './AiAvatar';
 import { GeminiLiveClient } from '@/services/liveService';
 import { Sparkles, X } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
@@ -232,7 +232,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                     </p>
                 </div>
 
-                <VoiceOrb
+                <AiAvatar
                     isActive={active}
                     volume={volume}
                     onClick={handleToggle}
