@@ -104,6 +104,30 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
         if (active) {
             liveClient.current?.disconnect();
             setActive(false);
+            if (timerInterval.current) { clearInterval(timerInterval.current); timerInterval.current = null; }
+            return;
+        }
+
+        if (!hasCredits) {
+            setError("Insufficient credits. Please top up to use Voice Mode.");
+            return;
+        }
+
+        // Show confirmation dialog if not custom instruction
+        if (!customInstruction && !showConfirm) {
+            setShowConfirm(true);
+            return;
+        }
+
+        setShowConfirm(false);
+        await startSession();
+    };
+
+    const startSession = async () => {
+
+        if (active) {
+            liveClient.current?.disconnect();
+            setActive(false);
             return;
         }
 
