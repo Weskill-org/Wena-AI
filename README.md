@@ -1,73 +1,71 @@
-# Welcome to Wena AI
+# Wena AI - Personalized AI Learning Experience
 
-## Project info
+Wena AI is an advanced, AI-powered educational platform designed to provide highly personalized learning experiences. Using state-of-the-art AI models, Wena 2.0 acts as a mentor, counselor, and tutor, tailoring its interactions to each user's unique persona and career goals.
 
-**URL**: https://lovable.dev/projects/9b77a0eb-2a75-4803-bf92-f0f4a9f9c45a
+## 🚀 Core Features
 
-## How can I edit this code?
+- **AI Persona Management**: Create and refine your unique learning persona. Wena remembers your background, experience level, and goals to provide relevant guidance.
+- **Dynamic Learning Paths**: AI-generated curriculum and modules tailored to your interests, from "Mock Interviewer" to "Coding Buddy".
+- **Interactive AI Chat**: Real-time conversation with specialized AI roles (Career Counselor, Exam Buddy, WeCare Therapist, etc.).
+- **Voice Mode**: Immersive, hands-free learning using Gemini's live voice capabilities.
+- **Progress Tracking**: Monitor your learning journey with certificates, trophies, and a dedicated wallet for managing credits.
+- **Challenges & Flashcards**: Reinforce your knowledge through AI-driven challenges and interactive flashcards.
 
-There are several ways of editing your application.
+## 🛠️ Technology Stack
 
-**Use Lovable**
+- **Frontend**: [React](https://react.dev/) + [Vite](https://vitejs.dev/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Backend/Database**: [Supabase](https://supabase.com/)
+- **AI Integration**: [Google Gemini AI](https://deepmind.google/technologies/gemini/) (Pro & Live)
+- **Mobile Foundation**: [Capacitor](https://capacitorjs.com/) (Cross-platform Android/iOS)
+- **Animations**: [Framer Motion](https://www.framer.com/motion/)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/9b77a0eb-2a75-4803-bf92-f0f4a9f9c45a) and start prompting.
+## 📦 Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- [Node.js](https://nodejs.org/) (Latest LTS version recommended)
+- [npm](https://www.npmjs.com/)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. **Clone the repository**
+   ```bash
+   git clone <YOUR_GIT_URL>
+   cd Wena-AI
+   ```
 
-Follow these steps:
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+3. **Environment Setup**
+   Create a `.env` file in the root directory and add your Supabase credentials:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+4. **Start Development Server**
+   ```bash
+   npm run dev
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+## 📱 Mobile Development
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+Wena AI supports mobile deployment via Capacitor.
 
-**Edit a file directly in GitHub**
+- **Syncing Assets**: `npm run cap:sync`
+- **Open Android Studio**: `npm run cap:open:android`
+- **Open Xcode**: `npm run cap:open:ios`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🌐 Deployment
 
-**Use GitHub Codespaces**
+The application is optimized for deployment on [Vercel](https://vercel.com/) or via the [Lovable](https://lovable.dev/) platform's native publishing tools.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+*Made with ❤️ by Wena AI Team*
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/9b77a0eb-2a75-4803-bf92-f0f4a9f9c45a) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)

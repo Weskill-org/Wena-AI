@@ -43,11 +43,11 @@ const CurriculumVoiceSession: React.FC<CurriculumVoiceSessionProps> = ({ moduleT
                 return;
             }
 
-            console.log("Raw API Key from server:", data.apiKey); // DEBUG
+
             let apiKey;
             try {
                 apiKey = atob(data.apiKey);
-                console.log("Decoded API Key (first 5 chars):", apiKey.substring(0, 5)); // DEBUG
+
             } catch (e) {
                 console.error("Failed to decode API key:", e);
                 setError("Failed to decode configuration.");
