@@ -12,11 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { moduleService } from "@/services/moduleService";
 import { personaService } from "@/services/personaService";
-<<<<<<< Updated upstream
-=======
-import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Skeleton, SkeletonContainer } from "@/components/ui/SkeletonContainer";
->>>>>>> Stashed changes
 
 const quickActions = [
   { icon: Bot, label: "AI Buddy", gradient: "primary", path: "/chat", description: "Chat with AI" },
@@ -91,21 +87,7 @@ export default function Dashboard() {
               Hi, <span className="bg-gradient-to-r from-primary to-pink-500 bg-clip-text text-transparent">{userName}</span> 👋
             </h1>
           </div>
-<<<<<<< Updated upstream
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/profile')}
-            className="w-11 h-11 rounded-2xl bg-surface border border-border flex items-center justify-center overflow-hidden active-scale"
-          >
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-xl">👤</span>
-            )}
-          </motion.button>
-=======
           <div className="flex items-center gap-2">
-            <NotificationBell />
             <SkeletonContainer
               isLoading={!profile}
               fallback={<Skeleton className="w-11 h-11 rounded-2xl" />}
@@ -123,7 +105,6 @@ export default function Dashboard() {
               </motion.button>
             </SkeletonContainer>
           </div>
->>>>>>> Stashed changes
         </motion.div>
       </div>
 

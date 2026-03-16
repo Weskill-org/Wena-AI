@@ -212,10 +212,10 @@
     -webkit-backdrop-filter: blur(12px);
   }
 
-<<<<<<< Updated upstream
   .dark .glass {
     background: hsl(var(--surface) / 0.7);
-=======
+  }
+
   /* Glare effect for cards */
   .glare {
     position: relative;
@@ -248,7 +248,6 @@
   /* Standardized Skeleton pulse */
   .skeleton-pulse {
     @apply bg-muted/50 animate-pulse rounded-md;
->>>>>>> Stashed changes
   }
 
   /* Active state for touch */

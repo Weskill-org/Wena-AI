@@ -1,9 +1,5 @@
 import { motion } from "framer-motion";
-<<<<<<< Updated upstream
-import { User, Wallet, Award, Settings, LogOut, Gift, ChevronRight, Edit, Sparkles } from "lucide-react";
-=======
 import { User, Wallet, Award, Settings, LogOut, Gift, ChevronRight, Edit, Sparkles, Trophy, Share2 } from "lucide-react";
->>>>>>> Stashed changes
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
