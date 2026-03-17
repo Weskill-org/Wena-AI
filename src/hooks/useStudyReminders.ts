@@ -55,7 +55,7 @@ export function useStudyReminders() {
                             // Update profile first to prevent race conditions from 5m interval
                             await supabase
                                 .from('profiles')
-                                .update({ last_streak_warning_date: todayStr })
+                                .update({ last_reminded_date: todayStr } as any)
                                 .eq('id', user.id);
 
                             await (supabase.from('notifications' as any) as any).insert({

@@ -111,8 +111,8 @@ export default function Certificates() {
                             organizationName: "Wena AI",
                             issueYear: issuedDate.getFullYear(),
                             issueMonth: issuedDate.getMonth() + 1,
-                            certId: cert.verification_code || '',
-                            certUrl: `${window.location.origin}/verify/${cert.verification_code || ''}`
+                          certId: cert.id || '',
+                            certUrl: `${window.location.origin}/verify/${cert.id || ''}`
                           });
                           window.open(linkedinUrl, '_blank');
                         }}

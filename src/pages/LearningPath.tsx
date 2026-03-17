@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Map, RefreshCw, Sparkles, ChevronRight, Clock, Flame } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { BottomNav } from "@/components/layout/BottomNav";
-import { learningPathService, RoadmapItem } from "@/services/learningPathService";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton, SkeletonContainer } from "@/components/ui/SkeletonContainer";
 import { toast } from "sonner";
