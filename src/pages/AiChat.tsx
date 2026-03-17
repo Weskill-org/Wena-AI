@@ -70,7 +70,7 @@ export default function AiChat() {
   return (
     <div className="h-screen flex flex-col bg-background safe-area-top safe-area-bottom">
       {/* Voice Mode Container */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-y-auto">
         <VoiceMode
           onDeductCredit={handleDeductCredit}
           hasCredits={credits > 0}

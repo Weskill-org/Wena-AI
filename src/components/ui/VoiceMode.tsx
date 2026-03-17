@@ -250,7 +250,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
     const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
     return (
-        <div className="h-full flex flex-col items-center justify-center relative bg-background px-4">
+        <div className="min-h-full flex flex-col items-center relative bg-background px-4 pb-24 md:pb-10">
 
             {/* Background Ambience */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -258,7 +258,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                 <div className="absolute bottom-1/4 right-1/4 w-48 md:w-96 h-48 md:h-96 bg-secondary/5 rounded-full blur-3xl" />
             </div>
 
-            <div className="z-10 flex flex-col items-center space-y-4 md:space-y-8">
+            <div className="z-10 flex flex-col items-center space-y-4 md:space-y-8 my-auto py-10 w-full">
                 <div className="text-center space-y-1">
                     <h2 className="text-2xl md:text-3xl font-light text-foreground tracking-wide">Wena AI</h2>
                     <p className="text-muted-foreground text-sm md:text-base">
@@ -311,7 +311,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onDeductCredit, hasCredits, perso
                             <Sparkles size={14} />
                             <span className="text-xs font-bold uppercase">Live Transcript</span>
                         </div>
-                        <div className="h-24 md:h-32 overflow-y-auto text-xs text-muted-foreground space-y-1 scrollbar-hide">
+                        <div className="h-24 md:h-32 overflow-y-auto text-xs text-muted-foreground space-y-1">
                             {transcript.slice(-5).map((t, i) => (
                                 <p key={i} className="opacity-80">{t}</p>
                             ))}

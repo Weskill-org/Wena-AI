@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ThemeToggle } from "@/components/ThemeToggle";
+
 
 export default function Settings() {
     const { signOut } = useAuth();
@@ -151,10 +153,25 @@ export default function Settings() {
             title: "Preferences",
             items: [
                 {
-                    icon: theme === 'dark' ? Sun : Moon,
+                    icon: theme === 'dark' ? Moon : Sun,
                     label: "Theme",
                     description: theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode",
-                    action: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
+                    customAction: (
+                        <div 
+                            className="flex-1 flex items-center justify-between cursor-pointer"
+                            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                        >
+                            <div>
+                                <div className="font-semibold text-foreground">Theme</div>
+                                <div className="text-sm text-muted-foreground">
+                                    {theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                                </div>
+                            </div>
+                            <ThemeToggle />
+                        </div>
+                    )
+
+
                 },
                 {
                     icon: Bell,
@@ -162,6 +179,7 @@ export default function Settings() {
                     description: "Manage your alerts",
                     action: () => toast({ description: "Notification settings coming soon!" }),
                 },
+
                 {
                     icon: Shield,
                     label: "Privacy",
