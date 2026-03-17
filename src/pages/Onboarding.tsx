@@ -32,7 +32,6 @@ export default function Onboarding() {
   const finish = () => {
     localStorage.setItem("hasSeenOnboarding", "true");
     navigate("/login", { replace: true });
-    window.location.reload();
   };
 
   const next = () => {
