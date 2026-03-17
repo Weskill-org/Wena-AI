@@ -15,7 +15,7 @@ export function useStudyReminders() {
             // Get user's current preferences and stats
             const { data: profile, error: profileError } = await supabase
                 .from('profiles')
-                .select('preferred_study_time, push_notifications_enabled, in_app_reminders_enabled, last_reminded_date, last_streak_warning_date')
+                .select('preferred_study_time, push_notifications_enabled, in_app_reminders_enabled, last_reminded_date')
                 .eq('id', user.id)
                 .single();
 
@@ -40,7 +40,7 @@ export function useStudyReminders() {
                 // If it's been > 20 hours since last update, warn them
                 if (hoursSinceLastUpdate > 20) {
                     // Check if we already sent a streak warning today (checking local column first)
-                    if (profile.last_streak_warning_date !== todayStr) {
+                    if ((profile as any).last_streak_warning_date !== todayStr) {
                         // Double check DB notifications to be safe (using limit(1) to avoid Multiple objects error)
                         const { data: existingWarning } = await (supabase
                             .from('notifications' as any) as any)
@@ -55,7 +55,7 @@ export function useStudyReminders() {
                             // Update profile first to prevent race conditions from 5m interval
                             await supabase
                                 .from('profiles')
-                                .update({ last_streak_warning_date: todayStr })
+                                .update({ last_reminded_date: todayStr } as any)
                                 .eq('id', user.id);
 
                             await (supabase.from('notifications' as any) as any).insert({
