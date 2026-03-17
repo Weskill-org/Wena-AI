@@ -12,20 +12,43 @@ export default function Referral() {
     const { user } = useAuth();
     const [copied, setCopied] = useState(false);
 
-    const { data: referralCode } = useQuery({
+    const { data: referralCode, isLoading } = useQuery({
         queryKey: ['referralCode', user?.id],
         queryFn: async () => {
+            // First try to get existing code
             const { data, error } = await supabase
                 .from('referral_codes')
                 .select('*')
-                .eq('user_id', user?.id)
-                .single();
+                .eq('user_id', user!.id)
+                .maybeSingle();
+            
             if (error) throw error;
+            
+            // If no code exists, generate one
+            if (!data) {
+                const { data: newCode, error: genError } = await supabase
+                    .rpc('generate_referral_code', { user_id_param: user!.id });
+                
+                if (genError) throw genError;
+                
+                // Insert the new referral code
+                const { data: inserted, error: insertError } = await supabase
+                    .from('referral_codes')
+                    .insert({
+                        user_id: user!.id,
+                        referral_code: newCode,
+                    })
+                    .select()
+                    .single();
+                
+                if (insertError) throw insertError;
+                return inserted;
+            }
+            
             return data;
         },
         enabled: !!user?.id,
     });
-
     const copyReferralCode = () => {
         if (referralCode?.referral_code) {
             navigator.clipboard.writeText(referralCode.referral_code);
