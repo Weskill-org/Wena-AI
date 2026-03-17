@@ -15,7 +15,7 @@ export function useStudyReminders() {
             // Get user's current preferences and stats
             const { data: profile, error: profileError } = await supabase
                 .from('profiles')
-                .select('preferred_study_time, push_notifications_enabled, in_app_reminders_enabled, last_reminded_date, last_streak_warning_date')
+                .select('preferred_study_time, push_notifications_enabled, in_app_reminders_enabled, last_reminded_date')
                 .eq('id', user.id)
                 .single();
 
