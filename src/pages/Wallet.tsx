@@ -69,9 +69,19 @@ export default function Wallet() {
         .from('referral_codes')
         .select('*')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      return data;
+      if (data) return data;
+      // Auto-generate referral code if missing
+      const { data: newCode, error: rpcError } = await supabase.rpc('generate_referral_code', { user_id_param: user!.id });
+      if (rpcError) throw rpcError;
+      const { data: inserted, error: insertError } = await supabase
+        .from('referral_codes')
+        .insert({ user_id: user!.id, referral_code: newCode })
+        .select('*')
+        .single();
+      if (insertError) throw insertError;
+      return inserted;
     },
     enabled: !!user?.id,
   });
