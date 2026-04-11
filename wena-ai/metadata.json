@@ -1,0 +1,5 @@
+{
+  "name": "Wena AI",
+  "description": "An advanced AI Tutor powered by Gemini 3 Flash Live, featuring real-time voice, video, and screen sharing interactions.",
+  "requestFramePermissions": ["camera", "microphone", "display-capture"]
+}
